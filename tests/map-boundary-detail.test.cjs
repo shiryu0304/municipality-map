@@ -39,8 +39,9 @@ function setup({ failDetail = false, holdDetail = false } = {}) {
   let releaseDetail;
   const map = {
     setView(){return this;}, setMaxBounds(){return this;}, fitBounds(){return this;},
+    panBy(){return this;},
     getZoom(){return calls.currentZoom;}, getCenter(){return calls.currentCenter;},
-    getBounds(){return {intersects: candidate => candidate.name === '東京都'};},
+    getBounds(){return {intersects: candidate => candidate.name === '東京都', pad(){return this;}};},
     on(type,cb){calls.callbacks[type]=cb;return this;},
     removeLayer(layer){calls.removed.push(layer);}
   };

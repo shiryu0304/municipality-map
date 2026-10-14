@@ -39,11 +39,13 @@ function buildApp() {
   }
   elements.get('statusFilter').value = 'all';
 
-  const mapCalls = { layers: [], tiles: [], fitted: [], maxBounds: [], options: null };
+  const mapCalls = { layers: [], tiles: [], fitted: [], maxBounds: [], pans: [], options: null };
   const map = {
     setView() { return this; },
     fitBounds(bounds, options) { mapCalls.fitted.push({ bounds, options }); return this; },
     setMaxBounds(bounds) { mapCalls.maxBounds.push(bounds); return this; },
+    panBy(offset, options) { mapCalls.pans.push({ offset, options }); return this; },
+    getBounds() { return { pad(value) { return { displayPadding: value }; } }; },
     removeLayer() {}
   };
   const realBounds = {
@@ -145,8 +147,12 @@ test('map stays near Japan and supports prefecture filtering and nationwide rese
   assert.equal(app.mapCalls.options.maxBoundsViscosity, 1);
   assert.equal(app.mapCalls.options.minZoom, 3);
   assert.equal(app.mapCalls.options.maxZoom, 12);
-  assert.equal(app.mapCalls.maxBounds.length, 1);
-  assert.equal(app.mapCalls.maxBounds[0].padded, 0.1);
+  assert.equal(app.mapCalls.maxBounds.length, 2);
+  assert.equal(app.mapCalls.maxBounds[0], null, '古い範囲制限を解除してから位置を変える');
+  assert.equal(app.mapCalls.maxBounds[1].displayPadding, 0.12, 'ずらした表示範囲で移動制限を再設定');
+  assert.equal(app.mapCalls.pans.length, 1);
+  assert.deepEqual(Array.from(app.mapCalls.pans[0].offset), [0, -75], '日本列島を75px下へ移動する');
+  assert.equal(app.mapCalls.pans[0].options.animate, false);
   assert.equal(app.mapCalls.fitted.length, 1);
   assert.deepEqual(Array.from(app.mapCalls.fitted[0].options.paddingTopLeft), [40, 64]);
   assert.deepEqual(Array.from(app.mapCalls.fitted[0].options.paddingBottomRight), [40, 44]);
@@ -160,7 +166,8 @@ test('map stays near Japan and supports prefecture filtering and nationwide rese
   assert.equal(app.mapCalls.layers[1].data.features.length, 1);
   assert.equal(app.mapCalls.fitted[1].options.maxZoom, 8);
   assert.deepEqual(Array.from(app.mapCalls.fitted[1].options.padding), [24, 24]);
-  assert.equal(app.mapCalls.maxBounds.length, 1, 'prefecture selection preserves Japan bounds');
+  assert.equal(app.mapCalls.maxBounds.length, 2, 'prefecture selection preserves Japan bounds');
+  assert.equal(app.mapCalls.pans.length, 1, '都道府県の表示位置は変更しない');
 
   app.elements.get('resetMapView').click();
   assert.equal(filter.value, '');
@@ -168,7 +175,11 @@ test('map stays near Japan and supports prefecture filtering and nationwide rese
   assert.equal(app.mapCalls.fitted[2].options.maxZoom, 5);
   assert.deepEqual(Array.from(app.mapCalls.fitted[2].options.paddingTopLeft), [40, 64]);
   assert.deepEqual(Array.from(app.mapCalls.fitted[2].options.paddingBottomRight), [40, 44]);
-  assert.equal(app.mapCalls.maxBounds.length, 2);
+  assert.equal(app.mapCalls.maxBounds.length, 4);
+  assert.equal(app.mapCalls.maxBounds[2], null);
+  assert.equal(app.mapCalls.maxBounds[3].displayPadding, 0.12);
+  assert.equal(app.mapCalls.pans.length, 2);
+  assert.deepEqual(Array.from(app.mapCalls.pans[1].offset), [0, -75]);
   assert.equal(app.writes.length, 0);
 });
 

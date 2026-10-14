@@ -1,42 +1,39 @@
-市区町村制覇アプリ：全国地図の表示範囲・余白の改善
-対象リポジトリ：shiryu0304/municipality-map
+市区町村制覇アプリ：北海道の北側の余白を広げる更新
+対象：shiryu0304/municipality-map
 公開URL：https://shiryu0304.github.io/municipality-map/
 
-【変更したファイル】
-1. app.js ：全国表示に上下左右の余白を追加。都道府県表示にも適度な余白を追加。
-2. style.css ：地図の高さをPC 540→650px、スマートフォン 430→530pxに変更。
-3. tests/map-japan-only.test.cjs ：全国表示とリセット時の余白・地図の高さを検査。
+【変更内容】
+・app.js：全国表示および「全国表示に戻す」の際、日本列島を画面上で約75px下へ移動します。
+  従来と同じ fitBounds を使用するため、地図の縮尺をなるべく維持します。
+  位置調整が無効化されないよう、移動制限を一度解除してから表示範囲を基準に再設定します。
+・tests/map-japan-only.test.cjs：移動処理・初回表示・全国に戻す動作・記録の非変更を確認します。
+・tests/map-boundary-detail.test.cjs：模擬地図（テスト用）を新しい表示処理に対応させます。
 
-【変更しない内容】
-訪問記録のlocalStorage保存名・保存形式、JSONの書き出し・読み込み、
-読み込み前の自動バックアップ、地形タイル・市区町村の境界と詳細境界データ。
-index.htmlおよび他のテストファイルは変更しません。
+【変更しないもの】
+・index.html、style.css、訪問記録・JSONの読み込み/書き出し・保存形式
+・境界データ、地形表示、都道府県別制覇率
+・古い municipality-conquest リポジトリ
 
-【導入手順（Windows + GitHub Desktop）】
-1. iPhoneのアプリから「JSONを書き出す」で記録をバックアップしてください。
-2. GitHub Desktopで municipality-map リポジトリを選択し、未コミットの変更がないことを確認。
-3. 本ZIPファイルを右クリック →「すべて展開」。
-4. GitHub Desktop の Repository → Show in Explorer をクリック。
-5. ZIP内の app.js、style.css を開いた municipality-map フォルダへ上書きコピー。
-6. ZIP内の tests/map-japan-only.test.cjs を municipality-map/tests フォルダへ上書きコピー。
-   既存の import-safety.test.cjs、map-boundary-detail.test.cjs は消さないでください。
-7. GitHub Desktop の Changes で変更されたファイルが上の3件だけなのを確認。
-8. Summary: Improve nationwide map framing
-   Commit to main → Push origin で公開。
-9. 数分後に https://shiryu0304.github.io/municipality-map/ で表示を確認。
+【導入手順】
+1. 公開中のアプリから「JSONを書き出す」で訪問記録をバックアップ。
+2. GitHub Desktopで municipality-map を選択し、未コミットの変更がないことを確認。
+3. このZIPを右クリック →「すべて展開」。
+4. Repository → Show in Explorer をクリック。
+5. app.js を municipality-map フォルダに上書き。
+6. tests フォルダ内の2つの .test.cjs ファイルを、municipality-map/tests に上書き。
+7. GitHub Desktop の Changes で、上記3つのファイルだけが変更されたことを確認。
+8. Summary: Increase north margin above Hokkaido
+   Commit to main → Push origin。
+9. 新URLで、全国表示・都道府県切替・記録件数を確認。
 
-【公開後の確認事項】
-・全国地図で北海道の上側や沖縄の下側に十分な余白がある。
-・PCとiPhone Safari・ホーム画面アプリで地図が見やすい。
-・都道府県選択、拡大、全国表示に戻すが動作する。
-・地形、詳細境界、市区町村名、色分けが従来どおり表示される。
-・訪問済み件数と制覇率が変更前と一致し、JSON書き出しや復元ボタンが残っている。
+【確認項目】
+・北海道の北側が以前より広くなり、日本列島の大きさが大きく変わっていない。
+・「全国表示に戻す」でも同じ位置になる。
+・地図の拡大、都道府県選択、詳細境界と地形が以前と同様に表示される。
+・訪問済み件数・制覇率が以前と一致し、JSON書き出し・復元ボタンが残っている。
+・PC・iPhone Safari・ホーム画面版で確認。
 
-【自動テスト】
-node --test tests/*.test.cjs で37項目に合格。
-実際のPCブラウザ・iPhone Safariでの動作は未確認です。
-
-【注意】
-・Safariの「履歴とWebサイトデータを消去」などは押さないでください。
-・新旧URLは同じドメインのため、同じブラウザ内では訪問記録を共有する場合があります。
-・以前配布した municipality-conquest は今回更新しません。
+【自動テスト結果】
+node --test tests/*.test.cjs による37項目に合格。
+実機の表示位置は未検証のため、公開後の確認をお願いします。
+注意：SafariのWebサイトデータを削除すると訪問記録が失われるおそれがあります。
