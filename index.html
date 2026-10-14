@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#176b57">
   <title>全国市町村制覇</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <link rel="stylesheet" href="style.css?v=seamless-1">
+  <link rel="stylesheet" href="style.css?v=visit-3status-1">
 </head>
 <body>
   <header class="topbar">
@@ -32,9 +32,9 @@
     </section>
 
     <section class="stats-grid" aria-label="訪問状況">
-      <article class="stat panel"><span class="stat-icon">✓</span><div><p>訪問済み</p><strong id="visitedCount">0</strong><small>自治体</small></div></article>
-      <article class="stat panel"><span class="stat-icon">☆</span><div><p>行きたい</p><strong id="wantCount">0</strong><small>自治体</small></div></article>
-      <article class="stat panel"><span class="stat-icon">▦</span><div><p>未訪問</p><strong id="unvisitedCount">0</strong><small>自治体</small></div></article>
+      <article class="stat panel"><span class="stat-icon">✓</span><div><p>訪問</p><strong id="visitedCount">0</strong><small>自治体</small></div></article>
+      <article class="stat panel"><span class="stat-icon">→</span><div><p>通過</p><strong id="passedCount">0</strong><small>自治体</small></div></article>
+      <article class="stat panel"><span class="stat-icon">▦</span><div><p>未踏</p><strong id="unvisitedCount">0</strong><small>自治体</small></div></article>
     </section>
 
     <section class="panel prefecture-progress-panel">
@@ -42,13 +42,13 @@
         <div><p class="eyebrow">PREFECTURE PROGRESS</p><h2>都道府県別の制覇率</h2></div>
         <span class="badge" id="prefectureProgressBadge">47都道府県</span>
       </div>
-      <p class="muted small">都道府県を選ぶと、その地域の市町村一覧に絞り込めます。制覇率は「訪問済み」の自治体数をもとに計算します。</p>
+      <p class="muted small">都道府県を選ぶと、その地域の市町村一覧に絞り込めます。制覇率は「訪問」の自治体数をもとに計算します。</p>
       <div id="prefectureProgressList" class="prefecture-progress-list"></div>
     </section>
 
     <section class="panel map-panel">
       <div class="section-heading"><div><p class="eyebrow">VISIT MAP</p><h2>全国の訪問マップ</h2></div><span class="badge" id="mapBadge">地図を読み込み中</span></div>
-      <div class="map-legend"><span><i class="legend-dot visited"></i>訪問済み</span><span><i class="legend-dot want"></i>行きたい</span><span><i class="legend-dot unvisited"></i>未訪問</span></div>
+      <div class="map-legend"><span><i class="legend-dot visited"></i>訪問</span><span><i class="legend-dot passed"></i>通過</span><span><i class="legend-dot unvisited"></i>未踏</span></div>
       <div class="map-toolbar"><label>地図の表示範囲<select id="mapPrefectureFilter"><option value="">全国</option></select></label><button type="button" id="resetMapView" class="button secondary">全国表示に戻す</button></div>
       <div id="japanMap" aria-label="市町村の訪問状況マップ"></div>
       <p id="mapDetailStatus" class="muted small" role="status">地図を拡大するか都道府県を選ぶと、より詳細な境界を読み込みます。</p>
@@ -70,9 +70,9 @@
         <label>表示
           <select id="statusFilter">
             <option value="all">すべて</option>
-            <option value="visited">訪問済み</option>
-            <option value="want">行きたい</option>
-            <option value="unvisited">未訪問</option>
+            <option value="visited">訪問</option>
+            <option value="passed">通過</option>
+            <option value="unvisited">未踏</option>
           </select>
         </label>
       </div>
@@ -106,15 +106,15 @@
     <form method="dialog" id="recordForm">
       <div class="dialog-heading"><div><p class="eyebrow">VISIT RECORD</p><h2 id="dialogTitle">訪問記録</h2></div><button type="button" id="closeDialog" class="icon-button" aria-label="閉じる">×</button></div>
       <input type="hidden" id="recordCode">
-      <p class="visit-rule-note">訪問済みの基準：滞在時間は問いません。その自治体を実際に訪れたら「訪問済み」にしてください。</p>
+      <p class="visit-rule-note">記録の基準：未踏＝まだ行っていない／通過＝車・電車などで通っただけ／訪問＝実際に立ち寄った（滞在時間は問いません）。</p>
       <label>ステータス
         <select id="recordStatus">
-          <option value="unvisited">未訪問</option>
-          <option value="want">行きたい</option>
-          <option value="visited">訪問済み</option>
+          <option value="unvisited">未踏</option>
+          <option value="passed">通過</option>
+          <option value="visited">訪問</option>
         </select>
       </label>
-      <label>訪問日
+      <label>訪問・通過した日
         <input id="recordDate" type="date">
       </label>
       <label>メモ
@@ -128,6 +128,6 @@
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js?v=seamless-1"></script>
+  <script src="app.js?v=visit-3status-1"></script>
 </body>
 </html>

@@ -34,6 +34,13 @@ const statusFilter = $("statusFilter");
 const municipalityList = $("municipalityList");
 const dialog = $("recordDialog");
 
+// 旧「行きたい」は画面上で「未踏」として扱う。
+// 起動時に localStorage を書き換えないため、旧記録はバックアップに残る。
+function normalizeStatus(status) {
+  if (status === "visited" || status === "passed" || status === "unvisited") return status;
+  return "unvisited";
+}
+
 function setImportAvailability(ready, message) {
   municipalitiesReady = ready;
   $("importInput").disabled = !ready;
@@ -104,11 +111,16 @@ function saveBeforeImportBackup() {
 }
 
 function getRecord(code) {
-  return records[code] || { status: "unvisited", date: "", memo: "" };
+  const record = records[code];
+  if (!record || typeof record !== "object" || Array.isArray(record)) {
+    return { status: "unvisited", date: "", memo: "" };
+  }
+  // 表示用コピーだけ変換し、保存済みの元データは自動で変更しない。
+  return { ...record, status: normalizeStatus(record.status) };
 }
 
 function getStatusLabel(status) {
-  return ({ visited: "訪問済み", want: "行きたい", unvisited: "未訪問" })[status] || "未訪問";
+  return ({ visited: "訪問", passed: "通過", unvisited: "未踏" })[normalizeStatus(status)];
 }
 
 function getFilteredMunicipalities() {
@@ -128,15 +140,15 @@ function getFilteredMunicipalities() {
 function renderStats() {
   const total = municipalities.length;
   const visited = municipalities.filter((m) => getRecord(m.code).status === "visited").length;
-  const want = municipalities.filter((m) => getRecord(m.code).status === "want").length;
-  const unvisited = total - visited - want;
+  const passed = municipalities.filter((m) => getRecord(m.code).status === "passed").length;
+  const unvisited = total - visited - passed;
   const percent = total ? visited / total * 100 : 0;
 
   $("overallPercent").textContent = `${percent.toFixed(1)}%`;
   $("overallBar").style.width = `${percent}%`;
-  $("overallCount").textContent = `${visited} / ${total} 自治体`;
+  $("overallCount").textContent = `訪問 ${visited} / ${total} 自治体`;
   $("visitedCount").textContent = visited;
-  $("wantCount").textContent = want;
+  $("passedCount").textContent = passed;
   $("unvisitedCount").textContent = unvisited;
 }
 
@@ -249,7 +261,8 @@ function openRecordDialog(municipality) {
   $("recordCode").value = municipality.code;
   $("dialogTitle").textContent = `${municipality.name}の記録`;
   $("recordStatus").value = record.status;
-  $("recordDate").value = record.date || (record.status === "visited" ? getLocalDateString() : "");
+  const wasTravelled = record.status === "visited" || record.status === "passed";
+  $("recordDate").value = record.date || (wasTravelled ? getLocalDateString() : "");
   $("recordMemo").value = record.memo || "";
   dialog.showModal();
 }
@@ -265,7 +278,7 @@ $("recordForm").addEventListener("submit", (event) => {
   const previousRecord = records[code];
   records[code] = {
     status,
-    date: status === "visited" ? $("recordDate").value : "",
+    date: status === "unvisited" ? "" : $("recordDate").value,
     memo: $("recordMemo").value.trim()
   };
   if (!saveRecords()) {
@@ -320,9 +333,10 @@ $("importInput").addEventListener("change", async (event) => {
     const allowed = new Set(municipalities.map((m) => m.code));
     const cleaned = {};
     for (const [code, value] of Object.entries(imported)) {
-      if (allowed.has(code) && value && ["visited", "want", "unvisited"].includes(value.status)) {
+      if (allowed.has(code) && value && typeof value === "object" && !Array.isArray(value) &&
+          ["visited", "passed", "unvisited", "want"].includes(value.status)) {
         cleaned[code] = {
-          status: value.status,
+          status: normalizeStatus(value.status),
           date: typeof value.date === "string" ? value.date : "",
           memo: typeof value.memo === "string" ? value.memo.slice(0, 5000) : ""
         };
@@ -458,13 +472,13 @@ function findMunicipalityForFeature(feature) {
   return municipalities.find(m => m.prefecture === pref && names.includes(m.name)) || null;
 }
 
-// 地形と自治体境界を同時に見られるよう、未訪問地域は薄い透明色にする。
+// 地形と自治体境界を同時に見られるよう、未踏地域は薄い透明色にする。
 function getMapStatusColor(feature) {
   const municipality = findMunicipalityForFeature(feature);
   if (!municipality) return { color: "#667b6d", weight: 0.55, fillColor: "#f2f5ec", fillOpacity: 0.06 };
   const status = getRecord(municipality.code).status;
   if (status === "visited") return { color: "#235743", weight: 0.65, fillColor: "#19865b", fillOpacity: 0.64 };
-  if (status === "want") return { color: "#866321", weight: 0.65, fillColor: "#f0b94e", fillOpacity: 0.63 };
+  if (status === "passed") return { color: "#2b5f8a", weight: 0.65, fillColor: "#7fb8e6", fillOpacity: 0.63 };
   return { color: "#53685b", weight: 0.55, fillColor: "#ffffff", fillOpacity: 0.05 };
 }
 
@@ -563,8 +577,11 @@ function refreshDetailVisibility() {
 function bindMunicipalityPopup(feature, layer) {
   const municipality = findMunicipalityForFeature(feature);
   if (!municipality) return;
-  const record = getRecord(municipality.code);
-  layer.bindPopup(`<div class="map-popup-title">${escapeHtml(municipality.name)}</div><div class="map-popup-status">${escapeHtml(municipality.prefecture)} · ${escapeHtml(getStatusLabel(record.status))}</div><button class="map-popup-button" type="button" data-map-code="${escapeHtml(municipality.code)}">記録を編集</button>`);
+  // ポップアップを開くたびに最新の訪問状態を表示する。
+  layer.bindPopup(() => {
+    const record = getRecord(municipality.code);
+    return `<div class="map-popup-title">${escapeHtml(municipality.name)}</div><div class="map-popup-status">${escapeHtml(municipality.prefecture)} · ${escapeHtml(getStatusLabel(record.status))}</div><button class="map-popup-button" type="button" data-map-code="${escapeHtml(municipality.code)}">記録を編集</button>`;
+  });
   layer.on("popupopen", event => {
     const button = event.popup.getElement()?.querySelector("[data-map-code]");
     if (button) button.addEventListener("click", () => openRecordDialog(municipality), { once: true });

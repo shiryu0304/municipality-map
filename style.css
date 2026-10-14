@@ -52,7 +52,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .card-actions { display: flex; align-items: center; gap: 8px; }
 .status-pill { font-size: 11px; font-weight: 700; padding: 5px 8px; border-radius: 999px; white-space: nowrap; }
 .status-visited { color: #12664f; background: #dff4e9; }
-.status-want { color: #8b5a0b; background: #fff0d0; }
+.status-passed { color: #1f5b8b; background: #dceefe; }
 .status-unvisited { color: #63716b; background: #edf1ee; }
 .button { border: 1px solid transparent; border-radius: 10px; padding: 10px 13px; font-size: 12px; font-weight: 750; cursor: pointer; text-decoration: none; text-align: center; font-family: inherit; }
 .button.primary { color: #fff; background: var(--green); }
@@ -102,7 +102,7 @@ dialog::backdrop { background: rgba(17, 35, 28, .48); }
 .map-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend-dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 .legend-dot.visited { background: #2d9b72; }
-.legend-dot.want { background: #e8ad45; }
+.legend-dot.passed { background: #7fb8e6; }
 .legend-dot.unvisited { background: #dfe7e2; border: 1px solid #b7c5bc; }
 .map-note { margin: 10px 0 0; }
 .leaflet-popup-content { min-width: 140px; }
