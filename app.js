@@ -646,8 +646,19 @@ function renderMapLayer(prefecture = "") {
   if (bounds.isValid()) {
     // Keep panning near Japan even when users zoom or drag the map.
     // Do not replace this with fixed coordinates: the bounds come from actual map data.
-    if (!prefecture) map.setMaxBounds(bounds.pad(0.1));
-    map.fitBounds(bounds, { padding: [14, 14], maxZoom: prefecture ? 8 : 5 });
+    if (!prefecture) {
+      map.setMaxBounds(bounds.pad(0.1));
+      // 全国表示では北海道・沖縄などが端に接しないよう上下左右に余白を取る。
+      // 画面のサイズに合わせてLeafletが自動で倍率と中心位置を計算する。
+      map.fitBounds(bounds, {
+        paddingTopLeft: [40, 64],
+        paddingBottomRight: [40, 44],
+        maxZoom: 5
+      });
+    } else {
+      // 都道府県表示はこれまでの拡大率を保ちつつ、適度な余白を確保する。
+      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8 });
+    }
   }
   const count = features.length;
   $("mapBadge").textContent = prefecture ? `${prefecture} · ${count.toLocaleString("ja-JP")} 区域` : `全国 · ${count.toLocaleString("ja-JP")} 区域`;

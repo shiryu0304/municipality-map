@@ -148,6 +148,9 @@ test('map stays near Japan and supports prefecture filtering and nationwide rese
   assert.equal(app.mapCalls.maxBounds.length, 1);
   assert.equal(app.mapCalls.maxBounds[0].padded, 0.1);
   assert.equal(app.mapCalls.fitted.length, 1);
+  assert.deepEqual(Array.from(app.mapCalls.fitted[0].options.paddingTopLeft), [40, 64]);
+  assert.deepEqual(Array.from(app.mapCalls.fitted[0].options.paddingBottomRight), [40, 44]);
+  assert.equal(app.mapCalls.fitted[0].options.maxZoom, 5);
   assert.equal(app.elements.get('mapBadge').textContent, '全国 · 1 区域');
 
   const filter = app.elements.get('mapPrefectureFilter');
@@ -156,12 +159,15 @@ test('map stays near Japan and supports prefecture filtering and nationwide rese
   assert.equal(app.mapCalls.layers.length, 2);
   assert.equal(app.mapCalls.layers[1].data.features.length, 1);
   assert.equal(app.mapCalls.fitted[1].options.maxZoom, 8);
+  assert.deepEqual(Array.from(app.mapCalls.fitted[1].options.padding), [24, 24]);
   assert.equal(app.mapCalls.maxBounds.length, 1, 'prefecture selection preserves Japan bounds');
 
   app.elements.get('resetMapView').click();
   assert.equal(filter.value, '');
   assert.equal(app.mapCalls.layers.length, 3);
   assert.equal(app.mapCalls.fitted[2].options.maxZoom, 5);
+  assert.deepEqual(Array.from(app.mapCalls.fitted[2].options.paddingTopLeft), [40, 64]);
+  assert.deepEqual(Array.from(app.mapCalls.fitted[2].options.paddingBottomRight), [40, 44]);
   assert.equal(app.mapCalls.maxBounds.length, 2);
   assert.equal(app.writes.length, 0);
 });
@@ -172,4 +178,11 @@ test('terrain and place labels are documented in the HTML and CSS', () => {
   assert.match(html, /地形の陰影・市区町村名/);
   assert.match(css, /#japanMap.*background: #314f78/);
   assert.match(css, /japan-name-tiles.*mix-blend-mode: multiply/s);
+});
+
+// 地図だけの高さを変えており、訪問記録や他のUIには影響させない。
+test('desktop and mobile map heights leave enough room for Japan', () => {
+  const css = readFileSync(path.join(root, 'style.css'), 'utf8');
+  assert.match(css, /#japanMap \{ height: 650px; background: #f5f8f6; \}/);
+  assert.match(css, /@media \(max-width: 650px\) \{ #japanMap \{ height: 530px; \}/);
 });

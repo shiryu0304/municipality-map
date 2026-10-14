@@ -116,10 +116,10 @@ dialog::backdrop { background: rgba(17, 35, 28, .48); }
 .map-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
 .map-toolbar label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; min-width: min(100%, 240px); }
 .map-toolbar select { min-height: 40px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; background: white; color: var(--ink); font: inherit; }
-#japanMap { height: 540px; background: #f5f8f6; }
+#japanMap { height: 650px; background: #f5f8f6; }
 .leaflet-container { font-family: inherit; background: #f5f8f6; }
 .leaflet-control-attribution { font-size: 10px !important; }
-@media (max-width: 650px) { #japanMap { height: 430px; } .map-toolbar .button { width: 100%; } }
+@media (max-width: 650px) { #japanMap { height: 530px; } .map-toolbar .button { width: 100%; } }
 
 /* v0.5: prefecture-level progress overview */
 .prefecture-progress-panel > .muted { margin: -7px 0 15px; }
