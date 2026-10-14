@@ -52,7 +52,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .card-actions { display: flex; align-items: center; gap: 8px; }
 .status-pill { font-size: 11px; font-weight: 700; padding: 5px 8px; border-radius: 999px; white-space: nowrap; }
 .status-visited { color: #12664f; background: #dff4e9; }
-.status-passed { color: #1f5b8b; background: #dceefe; }
+.status-passed { color: #92430f; background: #fff0db; }
 .status-unvisited { color: #63716b; background: #edf1ee; }
 .button { border: 1px solid transparent; border-radius: 10px; padding: 10px 13px; font-size: 12px; font-weight: 750; cursor: pointer; text-decoration: none; text-align: center; font-family: inherit; }
 .button.primary { color: #fff; background: var(--green); }
@@ -102,7 +102,7 @@ dialog::backdrop { background: rgba(17, 35, 28, .48); }
 .map-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend-dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 .legend-dot.visited { background: #2d9b72; }
-.legend-dot.passed { background: #7fb8e6; }
+.legend-dot.passed { background: #f09740; border: 1px solid #9c4811; }
 .legend-dot.unvisited { background: #dfe7e2; border: 1px solid #b7c5bc; }
 .map-note { margin: 10px 0 0; }
 .leaflet-popup-content { min-width: 140px; }
@@ -150,3 +150,16 @@ dialog::backdrop { background: rgba(17, 35, 28, .48); }
 /* 海域も陸地も一続きの地形背景を使用する。端末ごとの差が出る描画合成は使わない。 */
 #japanMap, #japanMap.leaflet-container { background: #32618a; }
 #japanMap { isolation: isolate; }
+
+/* 拡大時だけ表示される自治体名。背景と区別できる白い小さなラベルにする。 */
+.municipality-label-icon { background: transparent; border: 0; pointer-events: none !important; }
+.municipality-name-label {
+  position: absolute; top: 0; left: 0;
+  display: inline-block; transform: translate(-50%, -50%);
+  white-space: nowrap; background: rgba(255,255,255,.94);
+  border: 1px solid rgba(50,67,58,.42); border-radius: 5px;
+  color: #20372c; font-size: 12px; line-height: 1.35; font-weight: 750;
+  padding: 2px 5px; box-shadow: 0 1px 4px rgba(0,0,0,.23);
+  pointer-events: none;
+}
+@media (max-width: 650px) { .municipality-name-label { font-size: 11px; padding: 2px 4px; } }

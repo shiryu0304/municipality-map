@@ -68,7 +68,7 @@ test('legacy wanted record shows as unvisited without mutating storage on load',
   assert.equal(vm.runInContext('getRecord("131041").status',a.context),'unvisited');
   assert.equal(vm.runInContext('getRecord("131041").memo',a.context),'save this');
   assert.equal(JSON.parse(a.localStore.get('municipality-conquest-records-v1'))['131041'].status,'want');
-  assert.equal(vm.runInContext('getMapStatusColor(mapGeoJSON.features[2]).fillColor',a.context),'#7fb8e6');
+  assert.equal(vm.runInContext('getMapStatusColor(mapGeoJSON.features[2]).fillColor',a.context),'#f09740');
   assert.equal(vm.runInContext('getMapStatusColor(mapGeoJSON.features[0]).fillColor',a.context),'#19865b');
   a.els.get('statusFilter').value='passed';
   assert.deepEqual(Array.from(vm.runInContext('getFilteredMunicipalities().map(m=>m.name)',a.context)),['渋谷区']);
