@@ -153,8 +153,18 @@ function renderStats() {
 }
 
 function renderList() {
-  const list = getFilteredMunicipalities();
   municipalityList.replaceChildren();
+
+  // 初期表示では全国の自治体を並べない。地域の選択か名前検索をしたときだけ表示する。
+  // 「表示」フィルターだけを変更しても全自治体が突然並ばないようにする。
+  const hasSearchCondition = Boolean(prefectureFilter.value || searchInput.value.trim());
+  if (!hasSearchCondition) {
+    $("resultSummary").textContent = "都道府県を選ぶか、市町村名を入力すると一覧を表示します。";
+    $("emptyState").hidden = true;
+    return;
+  }
+
+  const list = getFilteredMunicipalities();
   $("resultSummary").textContent = `${list.length} 件を表示中`;
 
   list.forEach((m) => {

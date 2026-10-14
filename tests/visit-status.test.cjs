@@ -117,3 +117,66 @@ test('import supports old want entries, backs up original records, and displays 
   assert.equal(saved['131041'].date,'2026-05-01');
   assert.equal(a.els.get('passedCount').textContent,1);
 });
+
+test('municipality cards are hidden on initial load, without changing saved records',async()=>{
+  const a=start({'131016':{status:'visited',date:'2026-01-01',memo:'keep'}});
+  await wait();
+  assert.equal(a.els.get('municipalityList').children.length,0);
+  assert.match(a.els.get('resultSummary').textContent,/都道府県を選ぶか、市町村名を入力/);
+  assert.equal(a.els.get('emptyState').hidden,true);
+  assert.equal(a.els.get('visitedCount').textContent,1,'全体の集計は変わらない');
+  assert.equal(a.writes.length,0);
+});
+
+test('choosing a prefecture shows only its municipalities and clearing it hides the list',async()=>{
+  const a=start({});await wait();
+  a.els.get('prefectureFilter').value='東京都';
+  a.els.get('prefectureFilter').events.change();
+  assert.equal(a.els.get('municipalityList').children.length,3);
+  assert.equal(a.els.get('resultSummary').textContent,'3 件を表示中');
+  a.els.get('prefectureFilter').value='';
+  a.els.get('prefectureFilter').events.change();
+  assert.equal(a.els.get('municipalityList').children.length,0);
+  assert.equal(a.els.get('emptyState').hidden,true);
+  assert.equal(a.writes.length,0);
+});
+
+test('searching by municipality name shows matches and clearing search hides the list',async()=>{
+  const a=start({});await wait();
+  a.els.get('searchInput').value='新宿';
+  a.els.get('searchInput').events.input();
+  assert.equal(a.els.get('municipalityList').children.length,1);
+  assert.equal(a.els.get('municipalityList').children[0].children[0].children[0].textContent,'新宿区');
+  a.els.get('searchInput').value='見つからない自治体';
+  a.els.get('searchInput').events.input();
+  assert.equal(a.els.get('municipalityList').children.length,0);
+  assert.equal(a.els.get('emptyState').hidden,false,'検索結果0件のメッセージは表示する');
+  a.els.get('searchInput').value='';
+  a.els.get('searchInput').events.input();
+  assert.equal(a.els.get('emptyState').hidden,true,'未検索の案内に戻す');
+  assert.match(a.els.get('resultSummary').textContent,/都道府県を選ぶか/);
+  assert.equal(a.writes.length,0);
+});
+
+test('status-only filter cannot trigger a nationwide list; it still narrows the selected region',async()=>{
+  const a=start({'131130':{status:'passed',date:'2026-10-12',memo:'rail'}});await wait();
+  a.els.get('statusFilter').value='passed';
+  a.els.get('statusFilter').events.change();
+  assert.equal(a.els.get('municipalityList').children.length,0);
+  a.els.get('prefectureFilter').value='東京都';
+  a.els.get('prefectureFilter').events.change();
+  assert.equal(a.els.get('municipalityList').children.length,1);
+  assert.equal(a.els.get('municipalityList').children[0].children[0].children[0].textContent,'渋谷区');
+  assert.equal(a.writes.length,0);
+});
+
+test('clicking a prefecture progress item can reveal municipality records',async()=>{
+  const a=start({});await wait();
+  const tokyoButton=a.els.get('prefectureProgressList').children.find(btn=>
+    btn.children[0]?.children[0]?.textContent==='東京都');
+  assert.ok(tokyoButton);
+  tokyoButton.events.click();
+  assert.equal(a.els.get('prefectureFilter').value,'東京都');
+  assert.equal(a.els.get('municipalityList').children.length,3);
+  assert.equal(a.writes.length,0);
+});
