@@ -113,29 +113,24 @@ function buildApp() {
   return { mapCalls, elements, writes, fetches, tokyoPolygon };
 }
 
-test('shows Japanese municipality boundaries over Japan-only GSI terrain tiles', async () => {
+test('one continuous ocean terrain basemap fills the map with no rectangular tile coverage limit', async () => {
   const app = buildApp();
   await settle();
   assert.equal(app.fetches.length, 2);
-  assert.equal(app.mapCalls.tiles.length, 3);
-  const urls = app.mapCalls.tiles.map(tile => tile.url);
-  assert.deepEqual(urls, [
-    'https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png',
-    'https://cyberjapandata.gsi.go.jp/xyz/hillshademap/{z}/{x}/{y}.png',
-    'https://cyberjapandata.gsi.go.jp/xyz/blank/{z}/{x}/{y}.png'
-  ], 'map must use Japan coverage tiles, not OSM or global map tiles');
-  for (const tile of app.mapCalls.tiles) {
-    assert.deepEqual(Array.from(tile.options.bounds[0]), [20, 122]);
-    assert.deepEqual(Array.from(tile.options.bounds[1]), [46, 154]);
-    assert.equal(tile.options.minNativeZoom, 5);
-  }
-  assert.match(app.mapCalls.tiles[0].options.attribution, /国土地理院/);
+  assert.equal(app.mapCalls.tiles.length, 1, 'do not stack partially covered rectangular tiles');
+  const [{url, options}] = app.mapCalls.tiles;
+  assert.equal(url, 'https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}');
+  assert.equal(options.bounds, undefined, 'background tiles must not be clipped to a rectangular geographic box');
+  assert.equal(options.maxZoom, 12);
+  assert.match(options.attribution, /Esri/);
+  assert.ok(!source.includes('japan-name-tiles'), 'do not load a solid-white label tile layer');
+  assert.ok(!source.includes('japan-relief-tiles'), 'do not load a partial-coverage relief layer');
   assert.equal(app.mapCalls.layers.length, 1);
   const features = app.mapCalls.layers[0].data.features;
-  assert.equal(features.length, 1, 'non-Japan polygons must not enter the displayed layer');
+  assert.equal(features.length, 1, 'non-Japan municipality polygons must not enter the displayed layer');
   assert.equal(features[0].properties.N03_004, '千代田区');
   const polygonSettings = app.mapCalls.layers[0].options;
-  assert.equal(polygonSettings.smoothFactor, 0.35, 'boundary simplification must be reduced');
+  assert.equal(polygonSettings.smoothFactor, 0.35);
   assert.equal(polygonSettings.style(app.tokyoPolygon).fillColor, '#19865b');
   assert.ok(polygonSettings.style(app.tokyoPolygon).fillOpacity < 0.7);
   assert.equal(app.writes.length, 0, 'map display must not change visit records');
@@ -179,11 +174,12 @@ test('map stays near Japan and supports prefecture filtering and nationwide rese
 });
 
 
-test('terrain and place labels are documented in the HTML and CSS', () => {
+test('the map has one ocean color while loading and correctly credits its provider', () => {
   const css = readFileSync(path.join(root, 'style.css'), 'utf8');
-  assert.match(html, /地形の陰影・市区町村名/);
-  assert.match(css, /#japanMap.*background: #314f78/);
-  assert.match(css, /japan-name-tiles.*mix-blend-mode: multiply/s);
+  assert.match(html, /地形・海底の起伏と市区町村の境界/);
+  assert.match(html, /背景地図：Esri/);
+  assert.match(css, /#japanMap.*background: #32618a/);
+  assert.doesNotMatch(css, /japan-name-tiles|japan-hillshade-tiles|mix-blend-mode/);
 });
 
 // 地図だけの高さを変えており、訪問記録や他のUIには影響させない。

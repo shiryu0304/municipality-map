@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#176b57">
   <title>全国市町村制覇</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=seamless-1">
 </head>
 <body>
   <header class="topbar">
@@ -52,7 +52,7 @@
       <div class="map-toolbar"><label>地図の表示範囲<select id="mapPrefectureFilter"><option value="">全国</option></select></label><button type="button" id="resetMapView" class="button secondary">全国表示に戻す</button></div>
       <div id="japanMap" aria-label="市町村の訪問状況マップ"></div>
       <p id="mapDetailStatus" class="muted small" role="status">地図を拡大するか都道府県を選ぶと、より詳細な境界を読み込みます。</p>
-      <p class="muted small map-note">地形の陰影・市区町村名を表示しています。地図の区域を押すと記録を編集できます。表示には通信が必要です。海域部は海上保安庁海洋情報部の資料を使用して作成。詳細境界の出典：国土交通省「国土数値情報（行政区域データ、2026年）」、加工：ricewin（CC BY 4.0）。</p>
+      <p class="muted small map-note">地形・海底の起伏と市区町村の境界を表示しています。地域を押すと自治体名と訪問記録を確認・編集できます。地図の表示には通信が必要です。背景地図：Esri、Garmin、GEBCO、NOAA NGDC ほか。</p>
     </section>
 
     <section class="panel controls">
@@ -128,6 +128,6 @@
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=seamless-1"></script>
 </body>
 </html>

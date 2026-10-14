@@ -136,10 +136,6 @@ dialog::backdrop { background: rgba(17, 35, 28, .48); }
 .visit-rule-note { margin: 0; padding: 10px 12px; border-radius: 10px; background: #f0faf5; color: #315c4c; font-size: 12px; }
 @media (max-width: 650px) { .prefecture-progress-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; } .prefecture-progress-item { padding: 10px; } }
 
-/* 地形図：海は落ち着いた紺色、地形・陰影・地名を重ねる。 */
-#japanMap, #japanMap.leaflet-container { background: #314f78; }
-/* 白い地図タイルの下地を透明に近づけ、下の標高色を残す。 */
-#japanMap .japan-hillshade-tiles,
-#japanMap .japan-name-tiles { mix-blend-mode: multiply; }
-/* Safariでのレイヤー合成が安定するよう親要素内に描画を閉じ込める。 */
+/* 海域も陸地も一続きの地形背景を使用する。端末ごとの差が出る描画合成は使わない。 */
+#japanMap, #japanMap.leaflet-container { background: #32618a; }
 #japanMap { isolation: isolate; }

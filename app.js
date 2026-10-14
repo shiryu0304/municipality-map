@@ -672,8 +672,9 @@ function initializeMap() {
     $("mapBadge").textContent = "地図ライブラリを読み込めません";
     return;
   }
-  // 日本国内の地形だけを提供する地理院タイルを使う。
-  // OpenStreetMap等の世界地図は使わず、従来の日本付近への移動制限も保持する。
+  // 全国表示とスマートフォンで白・灰色の矩形ができないように、
+  // 提供範囲が部分的な複数のタイルではなく、全球を覆う1種類の海底地形図を背景に使う。
+  // 訪問状況・市区町村境界は従来どおり、その上に描画する。
   map = L.map("japanMap", {
     scrollWheelZoom: true,
     preferCanvas: true,
@@ -682,38 +683,15 @@ function initializeMap() {
     maxBoundsViscosity: 1.0
   }).setView([36.2, 138.2], 5);
 
-  // 南鳥島・沖ノ鳥島・与那国島などを含む、日本周辺のタイル取得範囲。
-  // 実際の市区町村の表示範囲はGeoJSONで制限する。
-  const terrainTileBounds = [[20, 122], [46, 154]];
-  const gsiTileOptions = {
-    bounds: terrainTileBounds,
+  // Esri Ocean Base は世界共通の連続したタイルで、境界に白い矩形が発生しない。
+  // 文字のないベースマップを使い、訪問した自治体名はポップアップで表示する。
+  // 出典表記は地図上と地図の説明文に表示する。
+  L.tileLayer("https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}", {
     minZoom: 3,
-    minNativeZoom: 5,
     maxZoom: 12,
     tileSize: 256,
-    keepBuffer: 2
-  };
-  // 標高による色分け（山・平野）を表示する。
-  L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png", {
-    ...gsiTileOptions,
-    zIndex: 1,
-    className: "japan-relief-tiles",
-    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">地理院タイル（国土地理院）</a>'
-  }).addTo(map);
-  // 陰影によって山の起伏を表現する。白地は乗算合成で地形の色を維持。
-  L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/hillshademap/{z}/{x}/{y}.png", {
-    ...gsiTileOptions,
-    maxNativeZoom: 12,
-    zIndex: 2,
-    className: "japan-hillshade-tiles",
-    opacity: 0.38
-  }).addTo(map);
-  // 市区町村名・行政界の文字を表示。道路や外国の地形は表示しない。
-  L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/blank/{z}/{x}/{y}.png", {
-    ...gsiTileOptions,
-    zIndex: 3,
-    className: "japan-name-tiles",
-    opacity: 0.88
+    keepBuffer: 2,
+    attribution: '地形図: <a href="https://www.esri.com/" target="_blank" rel="noopener noreferrer">Esri</a>、Garmin、GEBCO、NOAA NGDC ほか'
   }).addTo(map);
 
   if (typeof map.on === "function") {
