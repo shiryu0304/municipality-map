@@ -149,13 +149,10 @@ test('map stays near Japan and supports prefecture filtering and nationwide rese
   assert.equal(app.mapCalls.options.maxZoom, 12);
   assert.equal(app.mapCalls.maxBounds.length, 2);
   assert.equal(app.mapCalls.maxBounds[0], null, '古い範囲制限を解除してから位置を変える');
-  assert.equal(app.mapCalls.maxBounds[1].displayPadding, 0.12, 'ずらした表示範囲で移動制限を再設定');
-  assert.equal(app.mapCalls.pans.length, 1);
-  assert.deepEqual(Array.from(app.mapCalls.pans[0].offset), [0, -75], '日本列島を75px下へ移動する');
-  assert.equal(app.mapCalls.pans[0].options.animate, false);
+  assert.equal(app.mapCalls.maxBounds[1].displayPadding, 0.12, '中央配置後の表示範囲で移動制限を再設定');
+  assert.equal(app.mapCalls.pans.length, 0, '日本列島を強制的に下へ移動しない');
   assert.equal(app.mapCalls.fitted.length, 1);
-  assert.deepEqual(Array.from(app.mapCalls.fitted[0].options.paddingTopLeft), [40, 64]);
-  assert.deepEqual(Array.from(app.mapCalls.fitted[0].options.paddingBottomRight), [40, 44]);
+  assert.deepEqual(Array.from(app.mapCalls.fitted[0].options.padding), [32, 32], '上下左右均等な余白で中央表示する');
   assert.equal(app.mapCalls.fitted[0].options.maxZoom, 5);
   assert.equal(app.elements.get('mapBadge').textContent, '全国 · 1 区域');
 
@@ -167,19 +164,17 @@ test('map stays near Japan and supports prefecture filtering and nationwide rese
   assert.equal(app.mapCalls.fitted[1].options.maxZoom, 8);
   assert.deepEqual(Array.from(app.mapCalls.fitted[1].options.padding), [24, 24]);
   assert.equal(app.mapCalls.maxBounds.length, 2, 'prefecture selection preserves Japan bounds');
-  assert.equal(app.mapCalls.pans.length, 1, '都道府県の表示位置は変更しない');
+  assert.equal(app.mapCalls.pans.length, 0, '都道府県表示でも強制移動は行わない');
 
   app.elements.get('resetMapView').click();
   assert.equal(filter.value, '');
   assert.equal(app.mapCalls.layers.length, 3);
   assert.equal(app.mapCalls.fitted[2].options.maxZoom, 5);
-  assert.deepEqual(Array.from(app.mapCalls.fitted[2].options.paddingTopLeft), [40, 64]);
-  assert.deepEqual(Array.from(app.mapCalls.fitted[2].options.paddingBottomRight), [40, 44]);
+  assert.deepEqual(Array.from(app.mapCalls.fitted[2].options.padding), [32, 32], '全国表示に戻しても中央に配置する');
   assert.equal(app.mapCalls.maxBounds.length, 4);
   assert.equal(app.mapCalls.maxBounds[2], null);
   assert.equal(app.mapCalls.maxBounds[3].displayPadding, 0.12);
-  assert.equal(app.mapCalls.pans.length, 2);
-  assert.deepEqual(Array.from(app.mapCalls.pans[1].offset), [0, -75]);
+  assert.equal(app.mapCalls.pans.length, 0, '全国表示へ戻すときも強制移動を行わない');
   assert.equal(app.writes.length, 0);
 });
 

@@ -647,19 +647,12 @@ function renderMapLayer(prefecture = "") {
     // Keep panning near Japan even when users zoom or drag the map.
     // Do not replace this with fixed coordinates: the bounds come from actual map data.
     if (!prefecture) {
-      // 先に移動制限を解除する。狭い境界で固定したままだと、
-      // 全国表示を下へずらしてもLeafletが中央へ戻すことがある。
+      // 以前の表示範囲制限を解除してから、全国の境界を中央に配置する。
       map.setMaxBounds(null);
-      // 日本列島の縮尺はこれまでのfitBoundsに任せて維持する。
-      map.fitBounds(bounds, {
-        paddingTopLeft: [40, 64],
-        paddingBottomRight: [40, 44],
-        maxZoom: 5
-      });
-      // 地図の表示位置だけを75px下げ、北海道の北側の余白を広げる。
-      // LeafletのpanByは負のY方向で地物が下へ移動する。
-      map.panBy([0, -75], { animate: false });
-      // ずらした後の可視範囲を基準に、再び日本付近へ移動を制限する。
+      // 上下左右に同じ余白を確保する。panByで強制的に下へずらさない。
+      // 北海道から沖縄までの表示範囲は、実際の行政界データから自動計算する。
+      map.fitBounds(bounds, { padding: [32, 32], maxZoom: 5 });
+      // 現在の全国表示を含む範囲内でのみ地図を移動できるようにする。
       map.setMaxBounds(map.getBounds().pad(0.12));
     } else {
       // 都道府県表示はこれまでの拡大率を保ちつつ、適度な余白を確保する。

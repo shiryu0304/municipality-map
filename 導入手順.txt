@@ -1,39 +1,32 @@
-市区町村制覇アプリ：北海道の北側の余白を広げる更新
-対象：shiryu0304/municipality-map
-公開URL：https://shiryu0304.github.io/municipality-map/
+市区町村制覇アプリ：全国地図の中心位置修正版
+対象リポジトリ: shiryu0304/municipality-map
+公開URL: https://shiryu0304.github.io/municipality-map/
 
-【変更内容】
-・app.js：全国表示および「全国表示に戻す」の際、日本列島を画面上で約75px下へ移動します。
-  従来と同じ fitBounds を使用するため、地図の縮尺をなるべく維持します。
-  位置調整が無効化されないよう、移動制限を一度解除してから表示範囲を基準に再設定します。
-・tests/map-japan-only.test.cjs：移動処理・初回表示・全国に戻す動作・記録の非変更を確認します。
-・tests/map-boundary-detail.test.cjs：模擬地図（テスト用）を新しい表示処理に対応させます。
+【今回の修正】
+全国表示で地図を75px下に動かす処理を撤去し、上下左右32pxずつの余白を設定しました。
+「全国表示に戻す」でも同様に中央配置します。都道府県表示・境界の詳細化・保存処理は変更しません。
 
-【変更しないもの】
-・index.html、style.css、訪問記録・JSONの読み込み/書き出し・保存形式
-・境界データ、地形表示、都道府県別制覇率
-・古い municipality-conquest リポジトリ
+【作業前に】
+1. iPhoneなどのアプリから訪問記録のJSONをエクスポートして保管してください。
+2. GitHub Desktopで municipality-map を選択し、未コミットの変更がないことを確認します。
 
-【導入手順】
-1. 公開中のアプリから「JSONを書き出す」で訪問記録をバックアップ。
-2. GitHub Desktopで municipality-map を選択し、未コミットの変更がないことを確認。
-3. このZIPを右クリック →「すべて展開」。
-4. Repository → Show in Explorer をクリック。
-5. app.js を municipality-map フォルダに上書き。
-6. tests フォルダ内の2つの .test.cjs ファイルを、municipality-map/tests に上書き。
-7. GitHub Desktop の Changes で、上記3つのファイルだけが変更されたことを確認。
-8. Summary: Increase north margin above Hokkaido
-   Commit to main → Push origin。
-9. 新URLで、全国表示・都道府県切替・記録件数を確認。
+【置き換えるファイル】
+- app.js → municipality-map/app.js
+- tests/map-japan-only.test.cjs → municipality-map/tests/map-japan-only.test.cjs
 
-【確認項目】
-・北海道の北側が以前より広くなり、日本列島の大きさが大きく変わっていない。
-・「全国表示に戻す」でも同じ位置になる。
-・地図の拡大、都道府県選択、詳細境界と地形が以前と同様に表示される。
-・訪問済み件数・制覇率が以前と一致し、JSON書き出し・復元ボタンが残っている。
-・PC・iPhone Safari・ホーム画面版で確認。
+他のファイルは上書きしません。ZIP内のファイルを展開して同じ場所にコピーします。
 
-【自動テスト結果】
-node --test tests/*.test.cjs による37項目に合格。
-実機の表示位置は未検証のため、公開後の確認をお願いします。
-注意：SafariのWebサイトデータを削除すると訪問記録が失われるおそれがあります。
+【GitHub Desktop】
+変更ファイルが上記の2つのみであることを確認します。
+Summary: Center nationwide Japan map
+Commit to main → Push origin の順に操作します。
+
+【公開後に確認】
+- 地図の上側と下側の余白がおおむね均等か
+- 北海道から沖縄まで見渡せるか
+- 「全国表示に戻す」で中央配置に戻るか
+- 都道府県を選んだ時、詳細境界と地形が表示されるか
+- PCとiPhoneで記録件数・制覇率が変化しないか
+
+注意: ブラウザのデータ削除や記録のリセットはしないでください。
+自動テストは模擬環境で37項目合格しました。実機ブラウザの見た目は未検証です。
