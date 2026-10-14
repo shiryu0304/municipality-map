@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#176b57">
   <title>全国市町村制覇</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <link rel="stylesheet" href="style.css?v=visit-3status-1">
+  <link rel="stylesheet" href="style.css?v=prefecture-collapse-20261014">
 </head>
 <body>
   <header class="topbar">
@@ -38,12 +38,19 @@
     </section>
 
     <section class="panel prefecture-progress-panel">
-      <div class="section-heading">
-        <div><p class="eyebrow">PREFECTURE PROGRESS</p><h2>都道府県別の制覇率</h2></div>
-        <span class="badge" id="prefectureProgressBadge">47都道府県</span>
-      </div>
-      <p class="muted small">都道府県を選ぶと、その地域の市町村一覧に絞り込めます。制覇率は「訪問」の自治体数をもとに計算します。</p>
-      <div id="prefectureProgressList" class="prefecture-progress-list"></div>
+      <details class="prefecture-progress-details">
+        <summary class="prefecture-progress-toggle">
+          <div><p class="eyebrow">PREFECTURE PROGRESS</p><h2>都道府県別の制覇率</h2></div>
+          <div class="prefecture-progress-toggle-actions">
+            <span class="badge" id="prefectureProgressBadge">47都道府県</span>
+            <span class="prefecture-progress-chevron" aria-hidden="true"></span>
+          </div>
+        </summary>
+        <div class="prefecture-progress-content">
+          <p class="muted small">都道府県を選ぶと、その地域の市町村一覧に絞り込めます。制覇率は「訪問」の自治体数をもとに計算します。</p>
+          <div id="prefectureProgressList" class="prefecture-progress-list"></div>
+        </div>
+      </details>
     </section>
 
     <section class="panel map-panel">

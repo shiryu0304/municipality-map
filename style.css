@@ -122,7 +122,18 @@ dialog::backdrop { background: rgba(17, 35, 28, .48); }
 @media (max-width: 650px) { #japanMap { height: 530px; } .map-toolbar .button { width: 100%; } }
 
 /* v0.5: prefecture-level progress overview */
-.prefecture-progress-panel > .muted { margin: -7px 0 15px; }
+/* Native details/summary toggles the 47-prefecture panel without changing record data. */
+.prefecture-progress-toggle { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
+.prefecture-progress-toggle::-webkit-details-marker { display: none; }
+.prefecture-progress-toggle::marker { content: ""; }
+.prefecture-progress-toggle:focus-visible { outline: 2px solid var(--green); outline-offset: 5px; border-radius: 6px; }
+.prefecture-progress-toggle .eyebrow { margin-bottom: 3px; }
+.prefecture-progress-toggle h2 { margin-bottom: 0; }
+.prefecture-progress-toggle-actions { display: flex; align-items: center; flex-shrink: 0; gap: 14px; }
+.prefecture-progress-chevron { display: inline-block; width: 9px; height: 9px; border-right: 2px solid var(--green); border-bottom: 2px solid var(--green); transform: rotate(45deg); transition: transform .2s ease; margin: -5px 5px 0 0; }
+.prefecture-progress-details[open] .prefecture-progress-chevron { transform: rotate(225deg); margin-top: 5px; }
+.prefecture-progress-content { padding-top: 16px; }
+.prefecture-progress-content > .muted { margin: 0 0 15px; }
 .prefecture-progress-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
 .prefecture-progress-item { display: grid; gap: 7px; min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 11px; background: #fff; color: var(--ink); text-align: left; cursor: pointer; font: inherit; transition: border-color .15s ease, background .15s ease; }
 .prefecture-progress-item:hover, .prefecture-progress-item:focus-visible { border-color: var(--green); outline: none; }
