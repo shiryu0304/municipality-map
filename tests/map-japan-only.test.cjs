@@ -116,16 +116,17 @@ function buildApp() {
 test('one continuous ocean terrain basemap fills the map with no rectangular tile coverage limit', async () => {
   const app = buildApp();
   await settle();
-  assert.equal(app.fetches.length, 2);
+  assert.equal(app.fetches.length, 3, "市町村一覧・地図・県境を読み込む");
   assert.equal(app.mapCalls.tiles.length, 1, 'do not stack partially covered rectangular tiles');
   const [{url, options}] = app.mapCalls.tiles;
   assert.equal(url, 'https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}');
   assert.equal(options.bounds, undefined, 'background tiles must not be clipped to a rectangular geographic box');
   assert.equal(options.maxZoom, 12);
+  assert.equal(options.maxNativeZoom, 9, 'Do not request high-zoom Esri Ocean tiles that can show Map data not yet available');
   assert.match(options.attribution, /Esri/);
   assert.ok(!source.includes('japan-name-tiles'), 'do not load a solid-white label tile layer');
   assert.ok(!source.includes('japan-relief-tiles'), 'do not load a partial-coverage relief layer');
-  assert.equal(app.mapCalls.layers.length, 1);
+  assert.equal(app.mapCalls.layers.filter(layer => layer.options.onEachFeature).length, 1);
   const features = app.mapCalls.layers[0].data.features;
   assert.equal(features.length, 1, 'non-Japan municipality polygons must not enter the displayed layer');
   assert.equal(features[0].properties.N03_004, '千代田区');
@@ -154,8 +155,8 @@ test('map stays near Japan and supports prefecture filtering and nationwide rese
   const filter = app.elements.get('mapPrefectureFilter');
   filter.value = '東京都';
   filter.events.get('change')();
-  assert.equal(app.mapCalls.layers.length, 2);
-  assert.equal(app.mapCalls.layers[1].data.features.length, 1);
+  assert.equal(app.mapCalls.layers.filter(layer => layer.options.onEachFeature).length, 2);
+  assert.equal(app.mapCalls.layers.filter(layer => layer.options.onEachFeature)[1].data.features.length, 1);
   assert.equal(app.mapCalls.fitted[1].options.maxZoom, 8);
   assert.deepEqual(Array.from(app.mapCalls.fitted[1].options.padding), [24, 24]);
   assert.equal(app.mapCalls.maxBounds.length, 2, 'prefecture selection preserves Japan bounds');
@@ -163,7 +164,7 @@ test('map stays near Japan and supports prefecture filtering and nationwide rese
 
   app.elements.get('resetMapView').click();
   assert.equal(filter.value, '');
-  assert.equal(app.mapCalls.layers.length, 3);
+  assert.equal(app.mapCalls.layers.filter(layer => layer.options.onEachFeature).length, 3);
   assert.equal(app.mapCalls.fitted[2].options.maxZoom, 5);
   assert.deepEqual(Array.from(app.mapCalls.fitted[2].options.padding), [32, 32], '全国表示に戻しても中央に配置する');
   assert.equal(app.mapCalls.maxBounds.length, 4);
@@ -187,4 +188,18 @@ test('desktop and mobile map heights leave enough room for Japan', () => {
   const css = readFileSync(path.join(root, 'style.css'), 'utf8');
   assert.match(css, /#japanMap \{ height: 650px; background: #f5f8f6; \}/);
   assert.match(css, /@media \(max-width: 650px\) \{ #japanMap \{ height: 530px; \}/);
+});
+
+// No visual/browser test can prove availability of every remote Esri tile.
+// This prevents requests for Ocean tiles at zoom levels where coverage can be patchy.
+test('high zoom reuses Ocean Base zoom 9 tiles without limiting sharp boundaries or labels', async () => {
+  const app = buildApp();
+  await settle();
+  assert.equal(app.mapCalls.tiles.length, 1, 'keep one seamless global background layer');
+  const { options } = app.mapCalls.tiles[0];
+  assert.equal(options.maxNativeZoom, 9);
+  assert.equal(options.maxZoom, 12, 'visitors can still zoom in to see municipality names');
+  assert.equal(app.mapCalls.options.maxZoom, 12, 'map zoom itself remains unchanged');
+  assert.equal(app.writes.length, 0, 'changing background resolution does not modify records');
+  assert.match(html, /app\.js\?v=ocean-zoom-fix-20261015/, 'new app.js is not blocked by cached copy');
 });

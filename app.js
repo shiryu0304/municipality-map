@@ -458,9 +458,12 @@ const MAP_DATA_URL = "https://raw.githubusercontent.com/smartnews-smri/japan-top
 // 拡大表示では2026年行政区域データの県別5%簡略化版を取得する。
 // 0.1%の全国用データより詳細だが、測量データそのものではない。
 const DETAIL_MAP_BASE_URL = "https://raw.githubusercontent.com/ricewin/simplify-japan-geojson/main/GeoJson/";
-// 47都道府県の輪郭。市区町村の塗り分けとは独立した線だけの表示に使う。
-// 参照: スマートニュース メディア研究所、国土交通省 国土数値情報 (2021年版)。
-const PREFECTURE_BORDER_URL = "https://raw.githubusercontent.com/smartnews-smri/japan-topography/main/data/municipality/geojson/s0010/prefectures.json";
+// 全国の市町村境界と同じ元データによる県境（軽量な0.1%簡略化版）。
+// 市町村境界を太くすると全線が濃くなるため、県境だけを独立して上に描く。
+const PREFECTURE_BORDER_URL = "https://raw.githubusercontent.com/smartnews-smri/japan-topography/main/data/municipality/geojson/s0001/prefectures.json";
+let prefectureBorderGeoJSON = null;
+let prefectureBorderLayer;
+
 const detailedMapLayers = new Map(); // 県名 -> { layer, codes }
 const detailedMapRequests = new Set();
 const failedDetailedPrefectures = new Set();
@@ -468,7 +471,6 @@ const municipalityCodesHiddenByDetail = new Set();
 const prefectureGeoBounds = new Map(); // 県名 -> [南端, 西端, 北端, 東端]
 let coarseMunicipalityLabelPositions = new Map();
 let municipalityNameLayer; // 地図の上に表示する市区町村名（記録データとは独立）
-let prefectureBorderLayer; // 太い県境。失敗しても既存の市区町村境界は表示できる。
 let detailedMapUpdateTimer;
 let mapGeoJSON = null;
 const mapPrefectureFilter = $("mapPrefectureFilter");
@@ -585,39 +587,7 @@ function indexMunicipalityLabels(features) {
   return positions;
 }
 
-// 県境だけを別レイヤーとして描画する。市区町村の境界は細いまま維持する。
-// 新たなデータ取得が失敗しても訪問記録や基本地図には影響させない。
-function getPrefectureBorderStyle() {
-  return {
-    color: "#212923", weight: map?.getZoom?.() >= 8 ? 3.4 : 2.4,
-    opacity: 0.9, fill: false, lineCap: "round", lineJoin: "round"
-  };
-}
-
-async function loadPrefectureBorders() {
-  // Leaflet 1.9系ではpaneを作って、詳細境界より県境が手前に来るようにする。
-  // 地図の模擬テスト環境など、paneを持たない場合は追加読み込みをしない。
-  if (!map || !window.L || typeof map.createPane !== "function") return;
-  try {
-    const response = await fetch(PREFECTURE_BORDER_URL);
-    if (!response.ok) throw new Error(`県境 HTTP ${response.status}`);
-    const geojson = await response.json();
-    if (geojson?.type !== "FeatureCollection" || !Array.isArray(geojson.features) ||
-        geojson.features.length < 40) throw new Error("県境データの形式が不正です");
-    const pane = (typeof map.getPane === "function" && map.getPane("prefectureBorderPane")) ||
-      map.createPane("prefectureBorderPane");
-    pane.style.zIndex = "450";
-    pane.style.pointerEvents = "none";
-    prefectureBorderLayer = L.geoJSON(geojson, {
-      pane: "prefectureBorderPane", interactive: false, smoothFactor: 0.35,
-      style: getPrefectureBorderStyle
-    }).addTo(map);
-  } catch (error) {
-    console.warn("県境を太く表示するためのデータを取得できませんでした。", error);
-  }
-}
-
-// 拡大時だけ、画面内の自治体にラベルを重ねる。重複と文字の衝突を避け、スマホでも操作しやすくする。
+// まぷすたのように地図上に文字を直接置く。表示レベルに応じて文字数と優先度を制御する。
 function updateMapLabels() {
   if (!map || !window.L || typeof L.layerGroup !== "function" ||
       typeof L.marker !== "function" || typeof L.divIcon !== "function" ||
@@ -625,11 +595,11 @@ function updateMapLabels() {
       typeof map.latLngToContainerPoint !== "function") return;
   if (!municipalityNameLayer) municipalityNameLayer = L.layerGroup().addTo(map);
   municipalityNameLayer.clearLayers();
-  if (map.getZoom() < 8) return;
+  const zoom = map.getZoom();
+  if (zoom < 7) return;
 
   const selected = mapPrefectureFilter.value;
   const candidates = new Map();
-  // 詳細境界に含まれる自治体は、全国版と二重表示しない。
   for (const entry of detailedMapLayers.values()) {
     for (const [code, position] of entry.labels || []) candidates.set(code, position);
   }
@@ -641,38 +611,83 @@ function updateMapLabels() {
   const bounds = map.getBounds();
   const visible = [...candidates.values()].filter(item =>
     (!selected || item.municipality.prefecture === selected) &&
-    typeof bounds.contains === "function" && bounds.contains([item.lat, item.lon]));
-  // 地名は「白文字＋黒縁取り」にし、四角い背景は使わない。
-  // 都市部の地名が混雑するのを避けつつ、ズームするほど多く読めるようにする。
-  visible.sort((a, b) => b.area - a.area);
+    typeof bounds.contains === "function" && bounds.contains([item.lat, item.lon]) &&
+    // 広域表示では市だけを優先し、細かな町村・特別区は拡大後に表示する。
+    (zoom >= 8 || item.municipality.type === "市"));
+
+  // 都市名を優先しつつ、広い市区町村はラベルを残しやすくする。
+  const priority = m => m.type === "市" ? 2 : m.type === "特別区" ? 1 : 0;
+  visible.sort((a, b) => priority(b.municipality) - priority(a.municipality) || b.area - a.area);
   const occupied = [];
-  const zoom = map.getZoom();
+  const limit = zoom >= 10 ? 180 : zoom >= 9 ? 130 : zoom >= 8 ? 95 : 45;
   for (const item of visible) {
     const pixel = map.latLngToContainerPoint([item.lat, item.lon]);
     if (!pixel || !Number.isFinite(pixel.x) || !Number.isFinite(pixel.y)) continue;
-    // 大きな自治体は少し大きな字に。拡大時には文字を徐々に拡大する。
-    const size = Math.min(18, 12 + Math.max(0, zoom - 8) + (item.area >= 0.07 ? 2 : 0));
-    const halfWidth = Math.max(19, [...item.municipality.name].length * size * 0.54 + 4);
-    const halfHeight = size * 0.65;
-    if (occupied.some(pos => Math.abs(pixel.x - pos.x) < halfWidth + pos.halfWidth + 3 &&
-        Math.abs(pixel.y - pos.y) < halfHeight + pos.halfHeight + 3)) continue;
+    const kind = item.municipality.type === "市" ? "city" : "town";
+    const fontSize = kind === "city" ? (zoom >= 10 ? 15 : 14) : (zoom >= 10 ? 13 : 12);
+    const halfWidth = [...item.municipality.name].length * fontSize * 0.53 + 3;
+    const halfHeight = fontSize * 0.6;
+    if (occupied.some(pos => Math.abs(pixel.x - pos.x) < halfWidth + pos.halfWidth + 5 &&
+        Math.abs(pixel.y - pos.y) < halfHeight + pos.halfHeight + 4)) continue;
     occupied.push({ x: pixel.x, y: pixel.y, halfWidth, halfHeight });
-    const marker = L.marker([item.lat, item.lon], {
+    municipalityNameLayer.addLayer(L.marker([item.lat, item.lon], {
       icon: L.divIcon({
-        className: `municipality-label-icon municipality-label-size-${size}`,
-        html: `<span class="municipality-name-label">${escapeHtml(item.municipality.name)}</span>`,
+        className: "municipality-label-icon",
+        html: `<span class="municipality-name-label municipality-name-label--${kind}">${escapeHtml(item.municipality.name)}</span>`,
         iconSize: [0, 0], iconAnchor: [0, 0]
       }),
       interactive: false, keyboard: false
-    });
-    municipalityNameLayer.addLayer(marker);
-    if (occupied.length >= 150) break;
+    }));
+    if (occupied.length >= limit) break;
+  }
+}
+
+// 県境は自治体境界の線とは独立して描く。クリック・タップの邪魔をしない。
+function getPrefectureBorderStyle() {
+  const zoom = map && typeof map.getZoom === "function" ? map.getZoom() : 5;
+  return { color: "#1b251e", weight: zoom >= 8 ? 4 : 2.5,
+    opacity: 0.92, fill: false, interactive: false,
+    lineCap: "round", lineJoin: "round" };
+}
+
+function raisePrefectureBorders() {
+  if (prefectureBorderLayer && typeof prefectureBorderLayer.bringToFront === "function") {
+    prefectureBorderLayer.bringToFront();
+  }
+}
+
+function renderPrefectureBorders() {
+  if (!map || !prefectureBorderGeoJSON || typeof L.geoJSON !== "function") return;
+  if (prefectureBorderLayer) map.removeLayer(prefectureBorderLayer);
+  const selected = mapPrefectureFilter.value;
+  const features = prefectureBorderGeoJSON.features.filter(feature =>
+    !selected || feature.properties?.N03_001 === selected);
+  prefectureBorderLayer = L.geoJSON({type: "FeatureCollection", features}, {
+    style: getPrefectureBorderStyle, interactive: false, smoothFactor: 0.2
+  }).addTo(map);
+  raisePrefectureBorders();
+}
+
+async function loadPrefectureBorders() {
+  try {
+    const response = await fetch(PREFECTURE_BORDER_URL);
+    if (!response.ok) throw new Error(`県境データ HTTP ${response.status}`);
+    const data = await response.json();
+    if (data?.type !== "FeatureCollection" || !Array.isArray(data.features) ||
+        !data.features.some(feature => typeof feature.properties?.N03_001 === "string")) {
+      throw new Error("県境データの形式が不正です");
+    }
+    prefectureBorderGeoJSON = data;
+    renderPrefectureBorders();
+  } catch (error) {
+    console.warn("県境データの取得に失敗しました。市町村境界は従来どおり表示します。", error);
   }
 }
 
 function refreshMapStyles() {
   if (municipalityGeoLayer) municipalityGeoLayer.setStyle(getCoarseMapStatusColor);
   for (const entry of detailedMapLayers.values()) entry.layer.setStyle(getMapStatusColor);
+  raisePrefectureBorders();
 }
 
 function populateMapPrefectures() {
@@ -808,6 +823,7 @@ async function refreshDetailedBoundaries() {
       }).addTo(map);
       detailedMapLayers.set(prefecture, { layer, codes, labels: indexMunicipalityLabels(features) });
       refreshDetailVisibility();
+      raisePrefectureBorders();
     } catch (error) {
       console.warn(`${prefecture}の詳細境界を読み込めませんでした。`, error);
       failedDetailedPrefectures.add(prefecture);
@@ -822,7 +838,9 @@ function scheduleDetailedBoundaries() {
   clearTimeout(detailedMapUpdateTimer);
   detailedMapUpdateTimer = setTimeout(() => {
     updateMapLabels();
-    if (prefectureBorderLayer) prefectureBorderLayer.setStyle(getPrefectureBorderStyle);
+    if (prefectureBorderLayer && typeof prefectureBorderLayer.setStyle === "function") {
+      prefectureBorderLayer.setStyle(getPrefectureBorderStyle);
+    }
     void refreshDetailedBoundaries();
   }, 250);
 }
@@ -862,6 +880,7 @@ function renderMapLayer(prefecture = "") {
   $("mapBadge").textContent = prefecture ? `${prefecture} · ${count.toLocaleString("ja-JP")} 区域` : `全国 · ${count.toLocaleString("ja-JP")} 区域`;
   $("mapBadge").style.color = "#12664f";
   $("mapBadge").style.background = "#dff4e9";
+  renderPrefectureBorders();
   updateMapLabels();
   void refreshDetailedBoundaries();
 }
@@ -884,11 +903,15 @@ function initializeMap() {
   }).setView([36.2, 138.2], 5);
 
   // Esri Ocean Base は世界共通の連続したタイルで、境界に白い矩形が発生しない。
-  // 文字のないベースマップを使い、拡大時は自治体名ラベルを表示する。
+  // この背景地図は地域によって高倍率のタイルが未整備のため、
+  // zoom 10～12 では提供範囲が広い zoom 9 の画像を拡大して使用する。
+  // 「Map data not yet available」と書かれた青い代替タイルを要求しない。
+  // 市区町村の境界・地名は独立したレイヤーなので引き続き鮮明に表示される。
   // 出典表記は地図上と地図の説明文に表示する。
   L.tileLayer("https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}", {
     minZoom: 3,
     maxZoom: 12,
+    maxNativeZoom: 9,
     tileSize: 256,
     keepBuffer: 2,
     attribution: '地形図: <a href="https://www.esri.com/" target="_blank" rel="noopener noreferrer">Esri</a>、Garmin、GEBCO、NOAA NGDC ほか'
@@ -920,10 +943,10 @@ function initializeMap() {
       populateMapPrefectures();
       coarseMunicipalityLabelPositions = indexMunicipalityLabels(geojson.features);
       renderMapLayer("");
+      void loadPrefectureBorders();
       if (!municipalityGeoLayer || municipalityGeoLayer.getLayers().length === 0) {
         throw new Error("自治体一覧と地図の境界データを対応付けできませんでした");
       }
-      void loadPrefectureBorders();
     })
     .catch(error => {
       console.warn("地図データを読み込めませんでした。", error);
