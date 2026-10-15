@@ -27,5 +27,5 @@ test('expand indicator, keyboard focus and responsive progress grid remain style
   assert.match(css, /\.prefecture-progress-toggle::-webkit-details-marker/);
   assert.match(css, /\.prefecture-progress-list \{ display: grid; grid-template-columns: repeat\(3/);
   assert.match(css, /\.prefecture-progress-list \{ grid-template-columns: repeat\(2/);
-  assert.match(html, /style\.css\?v=readable-pref-20261014/, '変更後のCSSを読み込む');
+  assert.match(html, /style\.css\?v=passed-orange-labels-20261014/, '変更後のCSSを読み込む');
 });

@@ -79,16 +79,16 @@ function setup({ failDetail = false, holdDetail = false } = {}) {
 
 test('selecting a prefecture loads a distinct 2026 more detailed boundary and keeps records unchanged',async()=>{
   const a=setup(); await settle();
-  assert.equal(a.calls.layers.filter(layer=>layer.opts.onEachFeature).length,1);
+  assert.equal(a.calls.layers.length,1);
   a.elements.get('mapPrefectureFilter').value='東京都';
   a.elements.get('mapPrefectureFilter').events.change();
   await settle();
   assert.ok(a.calls.fetch.some(url=>url.endsWith('/GeoJson/13.json')));
-  const detail=a.calls.layers.filter(layer=>layer.opts.onEachFeature).at(-1);
+  const detail=a.calls.layers.at(-1);
   assert.equal(detail.data.features[0].geometry.coordinates[0][0][0],139.71);
   assert.equal(detail.opts.smoothFactor,0.15);
   assert.equal(detail.opts.style(detail.data.features[0]).fillColor,'#19865b');
-  const base=a.calls.layers.filter(layer=>layer.opts.onEachFeature)[1];
+  const base=a.calls.layers[1];
   assert.equal(base.style(a.broad.features[0]).fillOpacity,0,'hide replaced polygon');
   assert.equal(a.calls.writes.length,0,'render must never overwrite records');
   assert.match(a.elements.get('mapDetailStatus').textContent,/詳細境界を表示中/);
@@ -99,7 +99,7 @@ test('failed detailed fetch preserves original coarse polygons',async()=>{
   a.elements.get('mapPrefectureFilter').value='東京都';
   a.elements.get('mapPrefectureFilter').events.change();
   await settle();
-  const base=a.calls.layers.filter(layer=>layer.opts.onEachFeature).at(-1);
+  const base=a.calls.layers.at(-1);
   assert.equal(base.opts.style(a.broad.features[0]).fillColor,'#19865b');
   assert.match(a.elements.get('mapDetailStatus').textContent,/取得に失敗/);
   assert.equal(a.calls.writes.length,0);
@@ -113,7 +113,7 @@ test('late detail response is ignored after user changes prefecture',async()=>{
   assert.equal(typeof a.releaseDetail,'function');
   field.value=''; field.events.change();
   a.releaseDetail(); await settle();
-  assert.equal(a.calls.layers.filter(layer=>layer.opts.onEachFeature).length,3,'only nationwide, selected and nationwide coarse municipality layers are created');
+  assert.equal(a.calls.layers.length,3,'only nationwide, selected and nationwide coarse layers are created');
   assert.equal(a.calls.writes.length,0);
 });
 

@@ -38,10 +38,6 @@ function createApp() {
     feature('千代田区', '13101', 139.6, 35.6, .025), // 同じ自治体の分割領域
     feature('新宿区', '13104', 139.9, 35.9)
   ];
-  const borderFeatures = [
-    {type:'Feature', properties:{N03_001:'東京都'}, geometry:feature('千代田区','13101',139.5,35.5).geometry},
-    {type:'Feature', properties:{N03_001:'愛知県'}, geometry:feature('新宿区','13104',136.0,35.0).geometry}
-  ];
   const catalog = [
     { lgcode: '131016', pref: '東京都', city: '千代田区' },
     { lgcode: '131041', pref: '東京都', city: '新宿区' },
@@ -53,7 +49,7 @@ function createApp() {
     clearLayers() { this.markers = []; },
     addLayer(marker) { this.markers.push(marker); }
   };
-  const calls = { zoom: 5, writes: [], layers: [], fetch: [], borderRaised: 0 };
+  const calls = { zoom: 5, writes: [], layers: [], fetch: [] };
   const mapBounds = { contains([lat, lon]) { return lat > 35 && lat < 37 && lon > 139 && lon < 141; }, pad() { return this; } };
   const map = {
     setView() { return this; }, fitBounds() { return this; }, setMaxBounds() { return this; },
@@ -73,9 +69,7 @@ function createApp() {
         bindPopup() {}, bindTooltip() {}, on() {}
       });
       const layer = {data, options, addTo() { calls.layers.push(this); return this; },
-        setStyle(style) { this.currentStyle = style; },
-        bringToFront() { calls.borderRaised++; return this; },
-        getLayers() { return data.features; },
+        setStyle() {}, getLayers() { return data.features; },
         getBounds() { return {isValid() {return true;}}; }};
       return layer;
     }
@@ -94,7 +88,7 @@ function createApp() {
     fetch: async url => {
       calls.fetch.push(url);
       return {ok: true, json: async () => url.includes('localgovjp') ? catalog :
-        {type:'FeatureCollection', features: url.includes('prefectures.json') ? borderFeatures : sourceFeatures} };
+        {type:'FeatureCollection', features: sourceFeatures} };
     },
     console: {warn() {}, error() {}}, setTimeout: () => 1, clearTimeout() {},
     alert() {}, confirm: () => true, Blob, URL: {createObjectURL: () => '', revokeObjectURL() {}}
@@ -124,7 +118,7 @@ test('municipality name labels only show on zoom 8 and above, and only once per 
   a.elements.get('mapPrefectureFilter').events.change();
   await settle();
   assert.deepEqual(a.layerGroup.markers.map(marker => marker.options.icon.html).sort(),
-    ['<span class="municipality-name-label municipality-name-label--town">千代田区</span>', '<span class="municipality-name-label municipality-name-label--town">新宿区</span>'].sort());
+    ['<span class="municipality-name-label">千代田区</span>', '<span class="municipality-name-label">新宿区</span>'].sort());
   assert.ok(a.calls.fetch.some(url => url.endsWith('GeoJson/13.json')),
     '詳細境界へ切り替わってもラベルを維持する');
   assert.ok(a.layerGroup.markers.every(marker => marker.options.interactive === false));
@@ -145,47 +139,7 @@ test('label positioning handles islands, and styles remain readable on phone', (
   assert.ok(Math.abs(position.lat - 35.5) < .001);
   assert.ok(Math.abs(position.lon - 139.5) < .001);
   assert.match(css, /\.municipality-name-label \{/);
-  assert.match(css, /\.municipality-name-label--city \{/);
-  assert.match(css, /\.municipality-name-label--town \{/);
-  assert.match(css, /white-space: nowrap; padding: 0; background: transparent/);
-  assert.match(css, /text-shadow:/);
+  assert.match(css, /background: rgba\(255,255,255,\.94\)/);
   assert.match(css, /pointer-events: none/);
-  assert.match(html, /地図を拡大すると、市名を大きな白文字/);
-});
-
-test('prefecture outlines come from separate 47-prefecture source and are not clickable', async () => {
-  const a = createApp(); await settle();
-  const border = a.calls.layers.find(layer => !layer.options.onEachFeature);
-  assert.ok(border, '県境用の独立したレイヤーを表示');
-  assert.ok(a.calls.fetch.some(url => /municipality\/geojson\/s0001\/prefectures\.json$/.test(url)));
-  assert.equal(border.options.interactive, false);
-  assert.equal(border.options.style().fill, false);
-  assert.ok(border.options.style().weight >= 2);
-  assert.ok(a.calls.borderRaised >= 1);
-  assert.equal(a.calls.writes.length, 0);
-});
-
-test('prefecture selection filters bold outlines while keeping municipality polygons', async () => {
-  const a = createApp(); await settle();
-  a.elements.get('mapPrefectureFilter').value = '東京都';
-  a.elements.get('mapPrefectureFilter').events.change();
-  await settle();
-  const borders = a.calls.layers.filter(layer => !layer.options.onEachFeature);
-  assert.equal(borders.at(-1).data.features.length, 1);
-  assert.equal(borders.at(-1).data.features[0].properties.N03_001, '東京都');
-  assert.ok(a.calls.layers.filter(layer => layer.options.onEachFeature).length >= 2);
-  a.calls.zoom = 9;
-  assert.equal(vm.runInContext('getPrefectureBorderStyle().weight',a.ctx),4);
-  assert.equal(a.calls.writes.length, 0);
-});
-
-test('labels are prioritized at zoom 7 for cities, and compact town labels only when zoomed farther', async () => {
-  const a = createApp(); await settle();
-  a.calls.zoom = 7;
-  vm.runInContext('updateMapLabels()', a.ctx);
-  assert.equal(a.layerGroup.markers.length,0,'市以外の小さな地名は広域表示で出さない');
-  a.calls.zoom = 8;
-  vm.runInContext('updateMapLabels()', a.ctx);
-  assert.equal(a.layerGroup.markers.length,2,'拡大すると町村や区の表示もできる');
-  assert.ok(a.layerGroup.markers.every(marker=>marker.options.interactive===false));
+  assert.match(html, /拡大すると市区町村名が地図に表示されます/);
 });
