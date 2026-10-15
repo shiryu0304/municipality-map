@@ -279,13 +279,26 @@ function renderAll() {
 }
 
 function populatePrefectures() {
-  const prefectures = [...new Set(municipalities.map((m) => m.prefecture))].sort((a, b) => a.localeCompare(b, "ja"));
-  prefectures.forEach((pref) => {
-    const option = document.createElement("option");
-    option.value = pref;
-    option.textContent = pref;
-    prefectureFilter.append(option);
-  });
+  // 制覇率カードと同じ地域区分・北から南への順番で並べる。
+  // 最初の「すべての都道府県」はそのまま残し、地域名は選択できない見出しにする。
+  const available = new Set(municipalities.map(m => m.prefecture));
+  const known = new Set(PREFECTURE_REGIONS.flatMap(region => region.prefectures));
+  const others = [...available].filter(name => !known.has(name)).sort((a, b) => a.localeCompare(b, "ja"));
+  const regions = others.length ? [...PREFECTURE_REGIONS, { name: "その他", prefectures: others }] : PREFECTURE_REGIONS;
+
+  for (const region of regions) {
+    const present = region.prefectures.filter(name => available.has(name));
+    if (!present.length) continue;
+    const group = document.createElement("optgroup");
+    group.label = region.name;
+    for (const prefecture of present) {
+      const option = document.createElement("option");
+      option.value = prefecture;
+      option.textContent = prefecture;
+      group.append(option);
+    }
+    prefectureFilter.append(group);
+  }
 }
 
 function getLocalDateString(date = new Date()) {
