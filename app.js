@@ -197,49 +197,78 @@ function renderList() {
   $("emptyState").hidden = list.length !== 0;
 }
 
+// 北から南への八地方区分。県別の制覇率カードはこの順序で表示する。
+// 地域区分は表示のためだけに使用し、自治体コードや記録の保存内容は変更しない。
+const PREFECTURE_REGIONS = [
+  { name: "北海道", prefectures: ["北海道"] },
+  { name: "東北", prefectures: ["青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県"] },
+  { name: "関東", prefectures: ["茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県"] },
+  { name: "中部", prefectures: ["新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県", "静岡県", "愛知県"] },
+  { name: "近畿", prefectures: ["三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県"] },
+  { name: "中国", prefectures: ["鳥取県", "島根県", "岡山県", "広島県", "山口県"] },
+  { name: "四国", prefectures: ["徳島県", "香川県", "愛媛県", "高知県"] },
+  { name: "九州・沖縄", prefectures: ["福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"] }
+];
+
 function renderPrefectureProgress() {
   const host = $("prefectureProgressList");
   if (!host) return;
   host.replaceChildren();
-  const prefectures = [...new Set(municipalities.map(m => m.prefecture))]
-    .sort((a, b) => a.localeCompare(b, "ja"));
-  $("prefectureProgressBadge").textContent = `${prefectures.length}都道府県`;
+  const itemsByPrefecture = new Map();
+  for (const municipality of municipalities) {
+    if (!itemsByPrefecture.has(municipality.prefecture)) itemsByPrefecture.set(municipality.prefecture, []);
+    itemsByPrefecture.get(municipality.prefecture).push(municipality);
+  }
+  $("prefectureProgressBadge").textContent = `${itemsByPrefecture.size}都道府県`;
 
-  prefectures.forEach(prefecture => {
-    const items = municipalities.filter(m => m.prefecture === prefecture);
-    const visited = items.filter(m => getRecord(m.code).status === "visited").length;
-    const percent = items.length ? visited / items.length * 100 : 0;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `prefecture-progress-item${prefectureFilter.value === prefecture ? " is-active" : ""}`;
-    button.setAttribute("aria-label", `${prefecture}、${visited} / ${items.length}自治体、制覇率${percent.toFixed(1)}パーセント。一覧をこの都道府県に絞り込む`);
+  // 将来、自治体一覧に未知の都道府県名が含まれても表示から除外しない。
+  const known = new Set(PREFECTURE_REGIONS.flatMap(region => region.prefectures));
+  const others = [...itemsByPrefecture.keys()].filter(name => !known.has(name)).sort((a, b) => a.localeCompare(b, "ja"));
+  const regions = others.length ? [...PREFECTURE_REGIONS, { name: "その他", prefectures: others }] : PREFECTURE_REGIONS;
+  for (const region of regions) {
+    const present = region.prefectures.filter(name => itemsByPrefecture.has(name));
+    if (!present.length) continue;
+    const heading = document.createElement("h3");
+    heading.className = "prefecture-region-heading";
+    heading.textContent = region.name;
+    host.append(heading);
 
-    const top = document.createElement("span");
-    top.className = "prefecture-progress-top";
-    const name = document.createElement("strong");
-    name.textContent = prefecture;
-    const count = document.createElement("span");
-    count.textContent = `${visited} / ${items.length}`;
-    top.append(name, count);
+    for (const prefecture of present) {
+      const items = itemsByPrefecture.get(prefecture);
+      const visited = items.filter(m => getRecord(m.code).status === "visited").length;
+      const percent = items.length ? visited / items.length * 100 : 0;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `prefecture-progress-item${prefectureFilter.value === prefecture ? " is-active" : ""}`;
+      button.setAttribute("aria-label", `${prefecture}、${visited} / ${items.length}自治体、制覇率${percent.toFixed(1)}パーセント。一覧をこの都道府県に絞り込む`);
 
-    const track = document.createElement("span");
-    track.className = "prefecture-progress-track";
-    const fill = document.createElement("span");
-    fill.className = "prefecture-progress-fill";
-    fill.style.width = `${percent}%`;
-    track.append(fill);
+      const top = document.createElement("span");
+      top.className = "prefecture-progress-top";
+      const name = document.createElement("strong");
+      name.textContent = prefecture;
+      const count = document.createElement("span");
+      count.textContent = `${visited} / ${items.length}`;
+      top.append(name, count);
 
-    const bottom = document.createElement("span");
-    bottom.className = "prefecture-progress-bottom";
-    bottom.textContent = `${percent.toFixed(1)}% 制覇`;
-    button.append(top, track, bottom);
-    button.addEventListener("click", () => {
-      prefectureFilter.value = prefectureFilter.value === prefecture ? "" : prefecture;
-      renderAll();
-      $("municipalityList").scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-    host.append(button);
-  });
+      const track = document.createElement("span");
+      track.className = "prefecture-progress-track";
+      const fill = document.createElement("span");
+      fill.className = "prefecture-progress-fill";
+      fill.style.width = `${percent}%`;
+      track.append(fill);
+
+      const bottom = document.createElement("span");
+      bottom.className = "prefecture-progress-bottom";
+      bottom.textContent = `${percent.toFixed(1)}% 制覇`;
+      button.append(top, track, bottom);
+      button.addEventListener("click", () => {
+        prefectureFilter.value = prefectureFilter.value === prefecture ? "" : prefecture;
+        renderAll();
+        $("municipalityList").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      host.append(button);
+    }
+  }
 }
 
 function renderAll() {

@@ -135,6 +135,19 @@ dialog::backdrop { background: rgba(17, 35, 28, .48); }
 .prefecture-progress-content { padding-top: 16px; }
 .prefecture-progress-content > .muted { margin: 0 0 15px; }
 .prefecture-progress-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+/* 地方区分の見出しは3列（スマートフォンでは2列）を横断して表示する。 */
+.prefecture-region-heading {
+  grid-column: 1 / -1;
+  margin: 15px 0 1px;
+  padding: 5px 1px 7px;
+  border-bottom: 1px solid var(--line);
+  color: var(--green-dark);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+.prefecture-region-heading:first-child { margin-top: 0; }
+
 .prefecture-progress-item { display: grid; gap: 7px; min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 11px; background: #fff; color: var(--ink); text-align: left; cursor: pointer; font: inherit; transition: border-color .15s ease, background .15s ease; }
 .prefecture-progress-item:hover, .prefecture-progress-item:focus-visible { border-color: var(--green); outline: none; }
 .prefecture-progress-item.is-active { border-color: var(--green); background: #f0faf5; box-shadow: inset 0 0 0 1px var(--green); }
@@ -151,27 +164,33 @@ dialog::backdrop { background: rgba(17, 35, 28, .48); }
 #japanMap, #japanMap.leaflet-container { background: #32618a; }
 #japanMap { isolation: isolate; }
 
-/* 自治体名：参考地図のような白文字＋濃い縁取り。白い角丸の背景は設けない。 */
-.municipality-label-icon { background: transparent; border: 0; pointer-events: none !important; }
+/* まぷすた風の地名表示：四角い背景をなくし、文字の縁取りだけで地形上でも読めるようにする。 */
+.municipality-label-icon { background: transparent; border: none; pointer-events: none !important; }
 .municipality-name-label {
   position: absolute; top: 0; left: 0;
   display: inline-block; transform: translate(-50%, -50%);
-  white-space: nowrap; background: transparent; border: 0;
-  color: #fff; font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
-  font-size: 12px; font-weight: 900; line-height: 1.15;
-  letter-spacing: -.015em;
-  -webkit-text-stroke: 2.5px #1b231e;
-  paint-order: stroke fill;
-  text-shadow: 0 1px 1px rgba(0,0,0,.7);
-  pointer-events: none;
+  white-space: nowrap; padding: 0; background: transparent;
+  border: none; border-radius: 0; box-shadow: none;
+  line-height: 1.2; letter-spacing: -0.03em;
+  pointer-events: none; user-select: none;
 }
-/* 小さな町村名から大きな市名まで、地図の拡大率に応じて読みやすくする。 */
-.municipality-label-size-13 .municipality-name-label { font-size: 13px; }
-.municipality-label-size-14 .municipality-name-label { font-size: 14px; }
-.municipality-label-size-15 .municipality-name-label { font-size: 15px; }
-.municipality-label-size-16 .municipality-name-label { font-size: 16px; }
-.municipality-label-size-17 .municipality-name-label { font-size: 17px; }
-.municipality-label-size-18 .municipality-name-label { font-size: 18px; }
+/* 市：白文字に濃い縁取り。大きな地域ほど優先して表示する。 */
+.municipality-name-label--city {
+  color: #fff; font-size: 14px; font-weight: 800;
+  text-shadow: -1px -1px 0 #172019, 0 -1px 0 #172019, 1px -1px 0 #172019,
+    -1px 0 0 #172019, 1px 0 0 #172019,
+    -1px 1px 0 #172019, 0 1px 0 #172019, 1px 1px 0 #172019,
+    0 0 3px #172019, 0 0 5px #172019;
+}
+/* 町・村・特別区：黒文字に白い縁取り。小さな地名は一段控えめにする。 */
+.municipality-name-label--town {
+  color: #202923; font-size: 12px; font-weight: 750;
+  text-shadow: -1px -1px 0 #fff, 0 -1px 0 #fff, 1px -1px 0 #fff,
+    -1px 0 0 #fff, 1px 0 0 #fff,
+    -1px 1px 0 #fff, 0 1px 0 #fff, 1px 1px 0 #fff,
+    0 0 3px #fff;
+}
 @media (max-width: 650px) {
-  .municipality-name-label { -webkit-text-stroke-width: 2px; }
+  .municipality-name-label--city { font-size: 13px; }
+  .municipality-name-label--town { font-size: 11px; }
 }
