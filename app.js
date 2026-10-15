@@ -458,9 +458,6 @@ const MAP_DATA_URL = "https://raw.githubusercontent.com/smartnews-smri/japan-top
 // 拡大表示では2026年行政区域データの県別5%簡略化版を取得する。
 // 0.1%の全国用データより詳細だが、測量データそのものではない。
 const DETAIL_MAP_BASE_URL = "https://raw.githubusercontent.com/ricewin/simplify-japan-geojson/main/GeoJson/";
-// 47都道府県の輪郭。市区町村の塗り分けとは独立した線だけの表示に使う。
-// 参照: スマートニュース メディア研究所、国土交通省 国土数値情報 (2021年版)。
-const PREFECTURE_BORDER_URL = "https://raw.githubusercontent.com/smartnews-smri/japan-topography/main/data/municipality/geojson/s0010/prefectures.json";
 const detailedMapLayers = new Map(); // 県名 -> { layer, codes }
 const detailedMapRequests = new Set();
 const failedDetailedPrefectures = new Set();
@@ -468,7 +465,6 @@ const municipalityCodesHiddenByDetail = new Set();
 const prefectureGeoBounds = new Map(); // 県名 -> [南端, 西端, 北端, 東端]
 let coarseMunicipalityLabelPositions = new Map();
 let municipalityNameLayer; // 地図の上に表示する市区町村名（記録データとは独立）
-let prefectureBorderLayer; // 太い県境。失敗しても既存の市区町村境界は表示できる。
 let detailedMapUpdateTimer;
 let mapGeoJSON = null;
 const mapPrefectureFilter = $("mapPrefectureFilter");
@@ -585,38 +581,6 @@ function indexMunicipalityLabels(features) {
   return positions;
 }
 
-// 県境だけを別レイヤーとして描画する。市区町村の境界は細いまま維持する。
-// 新たなデータ取得が失敗しても訪問記録や基本地図には影響させない。
-function getPrefectureBorderStyle() {
-  return {
-    color: "#212923", weight: map?.getZoom?.() >= 8 ? 3.4 : 2.4,
-    opacity: 0.9, fill: false, lineCap: "round", lineJoin: "round"
-  };
-}
-
-async function loadPrefectureBorders() {
-  // Leaflet 1.9系ではpaneを作って、詳細境界より県境が手前に来るようにする。
-  // 地図の模擬テスト環境など、paneを持たない場合は追加読み込みをしない。
-  if (!map || !window.L || typeof map.createPane !== "function") return;
-  try {
-    const response = await fetch(PREFECTURE_BORDER_URL);
-    if (!response.ok) throw new Error(`県境 HTTP ${response.status}`);
-    const geojson = await response.json();
-    if (geojson?.type !== "FeatureCollection" || !Array.isArray(geojson.features) ||
-        geojson.features.length < 40) throw new Error("県境データの形式が不正です");
-    const pane = (typeof map.getPane === "function" && map.getPane("prefectureBorderPane")) ||
-      map.createPane("prefectureBorderPane");
-    pane.style.zIndex = "450";
-    pane.style.pointerEvents = "none";
-    prefectureBorderLayer = L.geoJSON(geojson, {
-      pane: "prefectureBorderPane", interactive: false, smoothFactor: 0.35,
-      style: getPrefectureBorderStyle
-    }).addTo(map);
-  } catch (error) {
-    console.warn("県境を太く表示するためのデータを取得できませんでした。", error);
-  }
-}
-
 // 拡大時だけ、画面内の自治体にラベルを重ねる。重複と文字の衝突を避け、スマホでも操作しやすくする。
 function updateMapLabels() {
   if (!map || !window.L || typeof L.layerGroup !== "function" ||
@@ -642,31 +606,27 @@ function updateMapLabels() {
   const visible = [...candidates.values()].filter(item =>
     (!selected || item.municipality.prefecture === selected) &&
     typeof bounds.contains === "function" && bounds.contains([item.lat, item.lon]));
-  // 地名は「白文字＋黒縁取り」にし、四角い背景は使わない。
-  // 都市部の地名が混雑するのを避けつつ、ズームするほど多く読めるようにする。
+  // 広い自治体を優先し、描画数を抑える。拡大すると自然に表示されるラベルが増える。
   visible.sort((a, b) => b.area - a.area);
   const occupied = [];
-  const zoom = map.getZoom();
   for (const item of visible) {
     const pixel = map.latLngToContainerPoint([item.lat, item.lon]);
     if (!pixel || !Number.isFinite(pixel.x) || !Number.isFinite(pixel.y)) continue;
-    // 大きな自治体は少し大きな字に。拡大時には文字を徐々に拡大する。
-    const size = Math.min(18, 12 + Math.max(0, zoom - 8) + (item.area >= 0.07 ? 2 : 0));
-    const halfWidth = Math.max(19, [...item.municipality.name].length * size * 0.54 + 4);
-    const halfHeight = size * 0.65;
-    if (occupied.some(pos => Math.abs(pixel.x - pos.x) < halfWidth + pos.halfWidth + 3 &&
-        Math.abs(pixel.y - pos.y) < halfHeight + pos.halfHeight + 3)) continue;
-    occupied.push({ x: pixel.x, y: pixel.y, halfWidth, halfHeight });
+    const halfWidth = Math.max(23, [...item.municipality.name].length * 6.5 + 9);
+    const height = 14;
+    if (occupied.some(pos => Math.abs(pixel.x - pos.x) < halfWidth + pos.halfWidth + 5 &&
+        Math.abs(pixel.y - pos.y) < height + 5)) continue;
+    occupied.push({ x: pixel.x, y: pixel.y, halfWidth });
     const marker = L.marker([item.lat, item.lon], {
       icon: L.divIcon({
-        className: `municipality-label-icon municipality-label-size-${size}`,
+        className: "municipality-label-icon",
         html: `<span class="municipality-name-label">${escapeHtml(item.municipality.name)}</span>`,
         iconSize: [0, 0], iconAnchor: [0, 0]
       }),
       interactive: false, keyboard: false
     });
     municipalityNameLayer.addLayer(marker);
-    if (occupied.length >= 150) break;
+    if (occupied.length >= 120) break;
   }
 }
 
@@ -820,11 +780,7 @@ async function refreshDetailedBoundaries() {
 
 function scheduleDetailedBoundaries() {
   clearTimeout(detailedMapUpdateTimer);
-  detailedMapUpdateTimer = setTimeout(() => {
-    updateMapLabels();
-    if (prefectureBorderLayer) prefectureBorderLayer.setStyle(getPrefectureBorderStyle);
-    void refreshDetailedBoundaries();
-  }, 250);
+  detailedMapUpdateTimer = setTimeout(() => { updateMapLabels(); void refreshDetailedBoundaries(); }, 250);
 }
 
 function renderMapLayer(prefecture = "") {
@@ -923,7 +879,6 @@ function initializeMap() {
       if (!municipalityGeoLayer || municipalityGeoLayer.getLayers().length === 0) {
         throw new Error("自治体一覧と地図の境界データを対応付けできませんでした");
       }
-      void loadPrefectureBorders();
     })
     .catch(error => {
       console.warn("地図データを読み込めませんでした。", error);

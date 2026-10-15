@@ -151,27 +151,15 @@ dialog::backdrop { background: rgba(17, 35, 28, .48); }
 #japanMap, #japanMap.leaflet-container { background: #32618a; }
 #japanMap { isolation: isolate; }
 
-/* 自治体名：参考地図のような白文字＋濃い縁取り。白い角丸の背景は設けない。 */
+/* 拡大時だけ表示される自治体名。背景と区別できる白い小さなラベルにする。 */
 .municipality-label-icon { background: transparent; border: 0; pointer-events: none !important; }
 .municipality-name-label {
   position: absolute; top: 0; left: 0;
   display: inline-block; transform: translate(-50%, -50%);
-  white-space: nowrap; background: transparent; border: 0;
-  color: #fff; font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
-  font-size: 12px; font-weight: 900; line-height: 1.15;
-  letter-spacing: -.015em;
-  -webkit-text-stroke: 2.5px #1b231e;
-  paint-order: stroke fill;
-  text-shadow: 0 1px 1px rgba(0,0,0,.7);
+  white-space: nowrap; background: rgba(255,255,255,.94);
+  border: 1px solid rgba(50,67,58,.42); border-radius: 5px;
+  color: #20372c; font-size: 12px; line-height: 1.35; font-weight: 750;
+  padding: 2px 5px; box-shadow: 0 1px 4px rgba(0,0,0,.23);
   pointer-events: none;
 }
-/* 小さな町村名から大きな市名まで、地図の拡大率に応じて読みやすくする。 */
-.municipality-label-size-13 .municipality-name-label { font-size: 13px; }
-.municipality-label-size-14 .municipality-name-label { font-size: 14px; }
-.municipality-label-size-15 .municipality-name-label { font-size: 15px; }
-.municipality-label-size-16 .municipality-name-label { font-size: 16px; }
-.municipality-label-size-17 .municipality-name-label { font-size: 17px; }
-.municipality-label-size-18 .municipality-name-label { font-size: 18px; }
-@media (max-width: 650px) {
-  .municipality-name-label { -webkit-text-stroke-width: 2px; }
-}
+@media (max-width: 650px) { .municipality-name-label { font-size: 11px; padding: 2px 4px; } }
