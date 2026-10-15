@@ -139,7 +139,8 @@ test('label positioning handles islands, and styles remain readable on phone', (
   assert.ok(Math.abs(position.lat - 35.5) < .001);
   assert.ok(Math.abs(position.lon - 139.5) < .001);
   assert.match(css, /\.municipality-name-label \{/);
-  assert.match(css, /background: rgba\(255,255,255,\.94\)/);
+  assert.match(css, /-webkit-text-stroke: 2\.5px #1b231e/);
+  assert.match(css, /white-space: nowrap; background: transparent/);
   assert.match(css, /pointer-events: none/);
-  assert.match(html, /拡大すると市区町村名が地図に表示されます/);
+  assert.match(html, /拡大すると市区町村名を白文字で表示します/);
 });
