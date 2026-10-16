@@ -118,7 +118,7 @@ test('municipality name labels only show on zoom 8 and above, and only once per 
   a.elements.get('mapPrefectureFilter').events.change();
   await settle();
   assert.deepEqual(a.layerGroup.markers.map(marker => marker.options.icon.html).sort(),
-    ['<span class="municipality-name-label">千代田区</span>', '<span class="municipality-name-label">新宿区</span>'].sort());
+    ['<span class="municipality-name-label municipality-name-label--town">千代田区</span>', '<span class="municipality-name-label municipality-name-label--town">新宿区</span>'].sort());
   assert.ok(a.calls.fetch.some(url => url.endsWith('GeoJson/13.json')),
     '詳細境界へ切り替わってもラベルを維持する');
   assert.ok(a.layerGroup.markers.every(marker => marker.options.interactive === false));
@@ -139,8 +139,8 @@ test('label positioning handles islands, and styles remain readable on phone', (
   assert.ok(Math.abs(position.lat - 35.5) < .001);
   assert.ok(Math.abs(position.lon - 139.5) < .001);
   assert.match(css, /\.municipality-name-label \{/);
-  assert.match(css, /-webkit-text-stroke: 2\.5px #1b231e/);
-  assert.match(css, /white-space: nowrap; background: transparent/);
+  assert.match(css, /text-shadow: -1px -1px 0 #172019/);
+  assert.match(css, /white-space: nowrap; padding: 0; background: transparent/);
   assert.match(css, /pointer-events: none/);
-  assert.match(html, /拡大すると市区町村名を白文字で表示します/);
+  assert.match(html, /地図を拡大すると、市名を大きな白文字/);
 });

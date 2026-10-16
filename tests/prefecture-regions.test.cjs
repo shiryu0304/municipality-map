@@ -96,7 +96,7 @@ test('regional headings span responsive columns and cache keys refresh changed C
   assert.match(css, /\.prefecture-region-heading\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
   assert.match(css, /\.prefecture-progress-list \{ grid-template-columns: repeat\(2/);
   assert.match(html, /style\.css\?v=pref-regions-20261015/);
-  assert.match(html, /app\.js\?v=prefecture-select-regions-20261015/);
+  assert.match(html, /app\.js\?v=lightweight-map-20261016/);
   assert.match(html, /<details class="prefecture-progress-details">/, 'existing collapse behavior is retained');
 });
 

@@ -1,0 +1,41 @@
+市区町村制覇アプリ：地図操作の軽量化（2026-10-16）
+対象：shiryu0304/municipality-map
+公開先：https://shiryu0304.github.io/municipality-map/
+
+【変更点】
+1. 地図操作で表示する地名が変わらない場合、地名マーカーの再生成を省略します。
+2. 詳細境界の表示対象が変化していない場合、全国分の境界線スタイル再描画を省略します。
+3. 境界データの自治体コードが一致しない場合に使用する、自治体名による検索を高速化します。
+4. HTMLのJavaScript更新識別子を変更し、古いコードのキャッシュと混同しにくくします。
+
+【変更しない仕様】
+訪問・通過・未踏、記録の保存形式、地名の見た目、県境、Esri背景地図、
+都道府県別制覇率、市町村検索、バックアップ・インポート・復元は変更しません。
+新たな永続キャッシュや端末ストレージ保存は追加していません。
+
+【上書き前】
+1. PCとiPhoneの各ブラウザで「JSONを書き出す」を使い、必要な訪問記録を保存する。
+2. GitHub Desktopで municipality-map を選び、既存の変更があれば先にコミットする。
+
+【上書きするもの】
+app.js → municipality-map/app.js
+index.html → municipality-map/index.html
+tests/ の6ファイル → municipality-map/tests/ に同名で上書き・追加
+style.cssは変更なし（上書き不要）
+
+【公開】
+GitHub DesktopのChangesで差分を確認する。
+Summary例: Reduce map redraw work
+Commit to main → Push origin
+
+【動作確認】
+PCとiPhoneで全国表示、都道府県切替、地図拡大縮小・移動、
+地名表示、県境、通過のオレンジ、記録編集と保存を確認する。
+Safariとホーム画面追加版では、両方を個別に確認する。
+ブラウザのサイトデータ削除はしないこと。
+
+【テスト】
+模擬環境で node --test tests/*.test.cjs を実行し、37項目合格。
+受領した既存テストには以前の表示仕様を前提とするものが7件あったため、
+現在の仕様に合わせてテストの期待値／模擬データを更新しています。
+実際のiPhone・Safariでの操作速度改善幅は未測定です。

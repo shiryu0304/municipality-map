@@ -27,7 +27,7 @@ function buildApp(borderFails = false) {
   const polygon = (name, code) => ({type:'Feature', properties:{N03_001:'東京都',N03_004:name,N03_007:code},
     geometry:{type:'Polygon',coordinates:[[[139.6,35.6],[139.7,35.6],[139.7,35.7],[139.6,35.6]]]}});
   const municipalityData = {type:'FeatureCollection',features:[polygon('千代田区','13101')]};
-  const prefectureData = {type:'FeatureCollection', features:Array.from({length:47},(_,i)=>({type:'Feature',properties:{id:i},geometry:municipalityData.features[0].geometry}))};
+  const prefectureData = {type:'FeatureCollection', features:Array.from({length:47},(_,i)=>({type:'Feature',properties:{id:i,N03_001:'東京都'},geometry:municipalityData.features[0].geometry}))};
   const catalog = [{pref:'東京都',city:'千代田区',lgcode:'131016'}, ...Array.from({length:1000},(_,i)=>({pref:'北海道',city:`試験${i}市`,lgcode:String(800000+i)}))];
   const map = {
     setView(){return this;}, fitBounds(){return this;}, setMaxBounds(){return this;},
@@ -67,13 +67,13 @@ test('prefecture border is separately fetched and layered above fine municipalit
   assert.equal(a.calls.layers.length,2);
   const border=a.calls.layers[1];
   assert.equal(border.data.features.length,47);
-  assert.equal(border.opts.pane,'prefectureBorderPane');
+  assert.equal(border.opts.interactive,false);
   assert.equal(border.opts.interactive,false);
   assert.equal(border.opts.style().fill,false);
-  assert.equal(border.opts.style().weight,2.4);
-  assert.equal(a.calls.panes.get('prefectureBorderPane').style.zIndex,'450');
+  assert.equal(border.opts.style().weight,2.5);
+  assert.equal(border.opts.smoothFactor,0.2);
   a.calls.zoom=8;
-  assert.equal(vm.runInContext('getPrefectureBorderStyle().weight',a.ctx),3.4);
+  assert.equal(vm.runInContext('getPrefectureBorderStyle().weight',a.ctx),4);
   assert.equal(a.calls.writes.length,0);
 });
 
@@ -86,11 +86,11 @@ test('failed prefecture border request leaves working municipality map and visit
 
 test('place names use outlined transparent letters, with changed CSS/JS cache identifiers',()=>{
   assert.match(css,/\.municipality-name-label \{/);
-  assert.match(css,/white-space: nowrap; background: transparent; border: 0/);
-  assert.match(css,/-webkit-text-stroke: 2\.5px #1b231e/);
-  assert.match(css,/\.municipality-label-size-18/);
+  assert.match(css,/white-space: nowrap; padding: 0; background: transparent/);
+  assert.match(css,/text-shadow: -1px -1px 0 #172019/);
+  assert.match(css,/\.municipality-name-label--city/);
   assert.doesNotMatch(css,/background: rgba\(255,255,255,\.94\)/);
-  assert.match(html,/県境データ：国土交通省/);
-  assert.match(html,/style\.css\?v=readable-place-names-pref-border-20261014/);
-  assert.match(html,/app\.js\?v=readable-place-names-pref-border-20261014/);
+  assert.match(html,/県境データ：スマートニュース/);
+  assert.match(html,/style\.css\?v=pref-regions-20261015/);
+  assert.match(html,/app\.js\?v=lightweight-map-20261016/);
 });
