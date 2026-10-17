@@ -164,37 +164,36 @@ dialog::backdrop { background: rgba(17, 35, 28, .48); }
 #japanMap, #japanMap.leaflet-container { background: #32618a; }
 #japanMap { isolation: isolate; }
 
-/* まぷすた風の地名表示：四角い背景をなくし、文字の縁取りだけで地形上でも読めるようにする。 */
+/* まぷすた風の地名: 地名をすべて表示し、区域の大きさと倍率で文字サイズを調整。
+   地名は県を変えるまで再生成せず、Leafletが位置だけを変える。 */
 .municipality-label-icon { background: transparent; border: none; pointer-events: none !important; }
 .municipality-name-label {
   position: absolute; top: 0; left: 0;
   display: inline-block; transform: translate(-50%, -50%);
   white-space: nowrap; padding: 0; background: transparent;
   border: none; border-radius: 0; box-shadow: none;
-  line-height: 1.2; letter-spacing: -0.03em;
+  font-size: clamp(7px, calc(var(--label-fit-z8, 10px) * var(--label-zoom-scale, 1)), var(--label-max-size, 13px));
+  line-height: 1.1; letter-spacing: -0.045em;
   pointer-events: none; user-select: none;
 }
-/* 市：白文字に濃い縁取り。大きな地域ほど優先して表示する。 */
+/* 多数の地名を同時に描くため、10方向の文字影から軽い縁取りへ変更。 */
 .municipality-name-label--city {
-  color: #fff; font-size: 14px; font-weight: 800;
-  text-shadow: -1px -1px 0 #172019, 0 -1px 0 #172019, 1px -1px 0 #172019,
-    -1px 0 0 #172019, 1px 0 0 #172019,
-    -1px 1px 0 #172019, 0 1px 0 #172019, 1px 1px 0 #172019,
-    0 0 3px #172019, 0 0 5px #172019;
+  color: #fff; font-weight: 800;
+  -webkit-text-stroke: 2px #172019;
+  paint-order: stroke fill;
+  text-shadow: 0 0 2px #172019;
 }
-/* 町・村・特別区：黒文字に白い縁取り。小さな地名は一段控えめにする。 */
 .municipality-name-label--town {
-  color: #202923; font-size: 12px; font-weight: 750;
-  text-shadow: -1px -1px 0 #fff, 0 -1px 0 #fff, 1px -1px 0 #fff,
-    -1px 0 0 #fff, 1px 0 0 #fff,
-    -1px 1px 0 #fff, 0 1px 0 #fff, 1px 1px 0 #fff,
-    0 0 3px #fff;
+  color: #202923; font-weight: 750;
+  -webkit-text-stroke: 2px #fff;
+  paint-order: stroke fill;
+  text-shadow: 0 0 2px #fff;
 }
-@media (max-width: 650px) {
-  .municipality-name-label--city { font-size: 13px; }
-  .municipality-name-label--town { font-size: 11px; }
+.municipality-name-label--vertical {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: -0.09em;
 }
-
 
 /* ページ内全画面モード。iOS SafariのFullScreen API対応状況に依存しない。 */
 body.map-fullscreen-active { overflow: hidden; }

@@ -86,7 +86,7 @@ test('selecting a prefecture loads a distinct 2026 more detailed boundary and ke
   assert.ok(a.calls.fetch.some(url=>url.endsWith('/GeoJson/13.json')));
   const detail=a.calls.layers.filter(l=>l.opts.onEachFeature).at(-1);
   assert.equal(detail.data.features[0].geometry.coordinates[0][0][0],139.71);
-  assert.equal(detail.opts.smoothFactor,0.15);
+  assert.equal(detail.opts.smoothFactor,0.75);
   assert.equal(detail.opts.style(detail.data.features[0]).fillColor,'#19865b');
   assert.ok(!a.calls.fetch.some(url => url.includes('N03-21_210101_designated_city')), '全国の市区町村境界を取得しない');
   assert.equal(a.calls.writes.length,0,'render must never overwrite records');

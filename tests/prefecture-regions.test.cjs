@@ -95,8 +95,8 @@ test('unknown prefectures appear in an Other group instead of disappearing', () 
 test('regional headings span responsive columns and cache keys refresh changed CSS and JS', () => {
   assert.match(css, /\.prefecture-region-heading\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
   assert.match(css, /\.prefecture-progress-list \{ grid-template-columns: repeat\(2/);
-  assert.match(html, /style\.css\?v=map-viewport-performance-20261017/);
-  assert.match(html, /app\.js\?v=map-viewport-performance-20261017/);
+  assert.match(html, /style\.css\?v=map-all-labels-20261017/);
+  assert.match(html, /app\.js\?v=map-all-labels-20261017/);
   assert.match(html, /<details class="prefecture-progress-details">/, 'existing collapse behavior is retained');
 });
 

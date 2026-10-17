@@ -86,10 +86,8 @@ test('moving without changing labels avoids recreating label DOM elements',async
   assert.equal(a.calls.addLabels,previous.adds,'same labels should not be recreated');
   a.calls.zoom=5;
   vm.runInContext('updateMapLabels()',a.ctx);
-  assert.equal(a.labels.markers.length,0);
-  const hiddenClears=a.calls.clearLabels;
-  vm.runInContext('updateMapLabels()',a.ctx);
-  assert.equal(a.calls.clearLabels,hiddenClears,'hidden labels should not be cleared repeatedly');
+  assert.equal(a.labels.markers.length,1,'県内の小さい町村名も縮小して保持する');
+  assert.equal(a.calls.clearLabels,previous.clears,'zooming must not clear labels');
   assert.equal(a.calls.writes.length,0);
 });
 

@@ -90,10 +90,10 @@ test('failed prefecture border request leaves working municipality map and visit
 test('place names use outlined transparent letters, with changed CSS/JS cache identifiers',()=>{
   assert.match(css,/\.municipality-name-label \{/);
   assert.match(css,/white-space: nowrap; padding: 0; background: transparent/);
-  assert.match(css,/text-shadow: -1px -1px 0 #172019/);
+  assert.match(css,/-webkit-text-stroke: 2px #172019/);
   assert.match(css,/\.municipality-name-label--city/);
   assert.doesNotMatch(css,/background: rgba\(255,255,255,\.94\)/);
   assert.match(html,/県境データ：スマートニュース/);
-  assert.match(html,/style\.css\?v=map-viewport-performance-20261017/);
-  assert.match(html,/app\.js\?v=map-viewport-performance-20261017/);
+  assert.match(html,/style\.css\?v=map-all-labels-20261017/);
+  assert.match(html,/app\.js\?v=map-all-labels-20261017/);
 });
