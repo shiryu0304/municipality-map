@@ -1,51 +1,73 @@
-市区町村制覇アプリ：ピンチ操作中の地名ちらつき改善（2026年10月17日）
+市区町村制覇アプリ：地名の再描画負荷軽減・画面いっぱいの地図表示
+対象: shiryu0304/municipality-map
+基準: 2026年10月17日「ピンチ操作中の地名表示」修正版
 
-【対象】
-A方式の全国から都道府県をタップして表示する版を導入済みのアプリです。
-前回のZIP「municipality_map_prefecture_option_A_20261017.zip」を基準に作成しています。
+■ 今回の目的
+1. 地図を横に動かして画面外に出た地名を、同じ県内で戻した際に作り直さない。
+2. 背景の画像タイルを以前より広く保持し、画面を行き来する際の読み直しを減らす。
+3. 地図の図形の描画範囲に余裕を持たせる（Canvas周辺余白25%）。
+4. 全画面モードの地図自体を画面の端まで表示し、上部に小さな操作バーだけを重ねる。
 
-【今回の変更点】
-1. app.js：LeafletのmarkerZoomAnimationを明示的に有効化。
-2. app.js：拡大縮小や移動のあと、残る地名はマーカーを使い回すように改善。
-3. index.html：更新後のapp.jsが読み込まれやすいよう、読み込み識別子を変更。
-4. tests内の4ファイル：地名の表示維持チェックと読み込み識別子のチェックを更新。
+■ 大切な注意
+・端末や県の図形の複雑さ、通信状態により体感速度は異なります。すべての再描画をなくす変更ではありません。
+・iPhone Safariのアドレスバーは消せません。地図が広がるのはSafariのページ表示領域内です。
+・全国→県別、記録の編集、記録の保存形式、JSON書き出し・読み込みには変更を加えていません。
+・県内に戻す地名の再利用は、拡大率7以上で有効です。拡大率7未満で地名を消す既存仕様は維持します。
 
-【変更しないもの】
-訪問記録の保存名・形式／制覇率／県の切り替え／地図の色／バックアップ処理。
-style.cssは変更しません。
+■ 上書きするファイル（必要なものだけを収録）
+リポジトリ直下：
+ - app.js（地名の再利用、背景タイル保持、描画範囲、ボタン表示）
+ - index.html（CSSとJSの読み込み識別子を更新）
+ - style.css（全画面時の地図と操作バーの配置）
+リポジトリ/tests/：
+ - map-japan-only.test.cjs
+ - map-labels-and-passed-color.test.cjs
+ - map-fullscreen-prefecture.test.cjs
+ - map-prefecture-border-style.test.cjs
+ - prefecture-collapse.test.cjs
+ - prefecture-regions.test.cjs
+上記以外の既存ファイルは削除・上書きしないでください。
 
-【変更前のバックアップ】
-1. PCとiPhoneでアプリの「JSONを書き出す」を実行し、別々に保管。
-2. GitHub Desktopでmunicipality-mapを選択。
-3. Changesに未保存の作業がある場合は、内容を確認して先にコミット。
-   すでにNo local changesなら、過去のコミットがバックアップになります。
+■ 更新する前に必ず行うこと
+1. iPhoneの公開アプリで「JSONを書き出す」を選択し、訪問記録をファイルに保存。
+2. PCで訪問記録を使っている場合は、PCでも別途「JSONを書き出す」で保存。
+3. WindowsでGitHub Desktopを開き、左上のリポジトリが municipality-map であることを確認。
+4. Changesに変更がある場合は中身を確認して先にコミット。変更がない場合は現在のコミットが復旧地点です。
+5. 必要に応じてリポジトリのフォルダを別の場所へコピーすると、さらに安全です。
 
-【PCでの上書き手順】
-1. このZIPを展開。
-2. GitHub Desktop → Repository → Show in Explorerでアプリのフォルダを開く。
-3. app.js と index.html をアプリのフォルダ直下の同名ファイルへ上書き。
-4. ZIPのtestsフォルダにある4ファイルを
-   アプリのtestsフォルダの同名ファイルへ上書き。
-   ※ testsフォルダ全体を置き換えず、ZIP内の4ファイルのみ。
-5. style.cssやその他のファイルは上書き・削除しない。
+■ Windowsでの更新手順
+1. ZIPを右クリックして「すべて展開」。
+2. GitHub Desktopで Repository → Show in Explorer を押してソースコードのフォルダを開く。
+3. ZIP内の app.js、index.html、style.css を、そのフォルダに同名でコピーして上書き。
+4. ZIP内の tests フォルダにある6つのファイルを、既存の tests フォルダへコピーして同名で上書き。
+5. GitHub Desktop の Changesで変更ファイルが意図どおりか確認。関係ないファイルは削除しない。
+6. VS CodeのLive Serverで index.html を開き、PCで操作を確認（ネット接続が必要）。
+7. Node.jsがある場合、プロジェクトフォルダのターミナルで以下を実行：
+   node --test tests/*.test.cjs
+   Windows PowerShellでワイルドカードを認識しない場合：
+   node --test (Get-ChildItem tests/*.test.cjs | ForEach-Object FullName)
+8. 問題がなければGitHub Desktopで Summary に
+   Improve map panning and immersive fullscreen
+   を入力 → Commit to main → Push origin。
+9. 公開サイト https://shiryu0304.github.io/municipality-map/ をPCとiPhoneで確認。
 
-【PCでの確認】
-・市区町村を選んで記録編集ができる。
-・拡大縮小後に地名が大きくちらつかない。
-・県を切り替えても前の県が残らない。
-・保存した訪問記録がそのまま残っている。
-・Node.jsがある場合は、VS Codeのターミナルで node --test tests/*.test.cjs を実行。
+■ PC・iPhoneのチェック項目
+□ 全国の県を選択し、県内の市区町村だけが表示される。
+□ 県内の地名がある部分を画面外へ動かし、元へ戻したとき、地名のちらつき・引っ掛かりが減る。
+□ ピンチで拡大縮小しても地名・境界が正常に表示される。
+□ 地図を「全画面表示」にすると、表示領域の端まで地図が広がる。
+□ 全画面中も県選択・「全国へ」・「閉じる」のボタンが使える。
+□ 全画面中、地図の拡大縮小ボタンが操作バーに隠れていない。
+□ 「閉じる」で元の画面に戻り、地図が崩れない。
+□ 訪問記録を編集し、制覇率と地図の塗り分けが変わる。
+□ iPhoneのSafariと、ホーム画面に追加した版で両方試す。
 
-【GitHub Pages公開】
-1. GitHub Desktop → Changesで上書きした6ファイルだけ変更されていることを確認。
-2. Summary に Improve map labels during pinch zoom と入力。
-3. Commit to main → Push origin。
-4. 公開サイトをPCで開いて再読み込みし、改善の有無を確認。
-5. iPhoneのSafariでサイトを開いて再読み込みし、地名が見えたままピンチできるか確認。
-6. iPhoneホーム画面版でも確認（古い画面が出る場合、通常のSafariでも比較）。
+■ テストと限界
+Node.js模擬テスト47項目合格、JavaScript構文チェック合格。
+実機のiPhone・PCブラウザの地図表示や実際の速度向上は未検証です。
+背景地図・県境・市区町村境界は外部配信に依存します。
 
-【注意】
-自動テストは模擬環境です。実際のiPhoneでの見え方はユーザーによる確認が必要です。
-Leafletの標準動作やブラウザによりピンチ中の表示に違いが残る可能性があります。
-うまく表示されなくても、ブラウザのサイトデータは削除しないでください。
-問題があれば、変更前のGitHubコミットに戻してください。
+■ 困った場合
+ブラウザのサイトデータを消去しないでください（訪問記録を消してしまう可能性があります）。
+更新前のコミットをGitHub DesktopのHistoryから戻すか、バックアップしたソースに戻してください。
+不具合が起きた県、PC/iPhone、Safari/ホーム画面、操作方法を控えて連絡してください。

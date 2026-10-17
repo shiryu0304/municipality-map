@@ -39,7 +39,7 @@ function buildApp() {
   }
   elements.get('statusFilter').value = 'all';
 
-  const mapCalls = { layers: [], tiles: [], fitted: [], maxBounds: [], pans: [], options: null };
+  const mapCalls = { layers: [], tiles: [], fitted: [], maxBounds: [], pans: [], options: null, canvasOptions: null };
   const map = {
     setView() { return this; },
     fitBounds(bounds, options) { mapCalls.fitted.push({ bounds, options }); return this; },
@@ -53,6 +53,7 @@ function buildApp() {
     pad(value) { return { padded: value, original: this, isValid: () => true }; }
   };
   const Leaflet = {
+    canvas(options) { mapCalls.canvasOptions = options; return { buffered: true }; },
     map(id, options) {
       assert.equal(id, 'japanMap');
       mapCalls.options = options;
@@ -123,6 +124,10 @@ test('one continuous ocean terrain basemap fills the map with no rectangular til
   assert.equal(options.bounds, undefined, 'background tiles must not be clipped to a rectangular geographic box');
   assert.equal(options.maxZoom, 12);
   assert.equal(options.maxNativeZoom, 9, 'Do not request high-zoom Esri Ocean tiles that can show Map data not yet available');
+  assert.equal(options.keepBuffer, 4, '地図を往復するときに背景画像を保持する');
+  assert.equal(options.updateWhenZooming, false, 'ピンチ中の背景画像更新を減らす');
+  assert.equal(app.mapCalls.canvasOptions.padding, 0.25, '周辺の市町村境界を描画領域に少し残す');
+  assert.equal(app.mapCalls.options.renderer.buffered, true);
   assert.match(options.attribution, /Esri/);
   assert.ok(!source.includes('japan-name-tiles'), 'do not load a solid-white label tile layer');
   assert.ok(!source.includes('japan-relief-tiles'), 'do not load a partial-coverage relief layer');
@@ -201,5 +206,5 @@ test('high zoom reuses Ocean Base zoom 9 tiles without limiting sharp boundaries
   assert.equal(options.maxZoom, 12, 'visitors can still zoom in to see municipality names');
   assert.equal(app.mapCalls.options.maxZoom, 12, 'map zoom itself remains unchanged');
   assert.equal(app.writes.length, 0, 'changing background resolution does not modify records');
-  assert.match(html, /app\.js\?v=pinch-label-stability-20261017/, 'new app.js is not blocked by cached copy');
+  assert.match(html, /app\.js\?v=map-viewport-performance-20261017/, 'new app.js is not blocked by cached copy');
 });

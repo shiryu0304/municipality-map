@@ -739,6 +739,12 @@ function updateMapLabels() {
   } else {
     for (const [code, saved] of municipalityLabelMarkers) {
       const next = desired.get(code);
+      // 一度表示した地名は画面の外に出ても保持する。再び画面内に戻したとき、
+      // DOMマーカーを作り直すことなくLeafletが同じ地名を移動して表示できる。
+      // 現在見えているのに選ばれなくなったもの（重なりなど）だけを消す。
+      const isOffscreen = typeof bounds.contains === "function" &&
+        !bounds.contains([saved.lat, saved.lon]);
+      if (!next && isOffscreen) continue;
       if (!next || saved.lat !== next.lat || saved.lon !== next.lon || saved.kind !== next.kind) {
         municipalityNameLayer.removeLayer(saved.marker);
         municipalityLabelMarkers.delete(code);
@@ -1110,12 +1116,16 @@ function setMapFullscreen(expanded) {
     panel.classList.remove("is-map-fullscreen");
     document.body.classList.remove("map-fullscreen-active");
   }
-  button.textContent = expanded ? "全画面を閉じる" : "全画面表示";
+  // 全画面中はボタンを短くして地図の上に小さな操作バーを重ねる。
+  button.textContent = expanded ? "閉じる" : "全画面表示";
+  $("resetMapView").textContent = expanded ? "全国へ" : "全国表示に戻す";
   button.setAttribute("aria-pressed", String(expanded));
   button.setAttribute("aria-label", expanded ? "地図の全画面表示を終了" : "地図を全画面で表示");
-  // 地図容器の大きさが変わったらLeafletに知らせないと、タイルが隙間なく表示されない。
+  // サイズ変更だけで勝手に表示位置をずらさず、地名マーカーも保持する。
   const resize = () => {
-    if (map && typeof map.invalidateSize === "function") map.invalidateSize({ animate: false });
+    if (map && typeof map.invalidateSize === "function") {
+      map.invalidateSize({ animate: false, pan: false });
+    }
     updateMapLabels();
   };
   if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(resize);
@@ -1131,9 +1141,13 @@ function initializeMap() {
   // 全国表示とスマートフォンで白・灰色の矩形ができないように、
   // 提供範囲が部分的な複数のタイルではなく、全球を覆う1種類の海底地形図を背景に使う。
   // 訪問状況・市区町村境界は従来どおり、その上に描画する。
+  // Canvasの描画範囲を周辺へ少し広げ、画面端を出入りする境界の
+  // 切り直しを緩和する。広げすぎるとメモリを使うため25%にとどめる。
+  const bufferedRenderer = typeof L.canvas === "function" ? L.canvas({ padding: 0.25 }) : undefined;
   map = L.map("japanMap", {
     scrollWheelZoom: true,
     preferCanvas: true,
+    ...(bufferedRenderer ? { renderer: bufferedRenderer } : {}),
     // 地名マーカーもピンチ拡大縮小のアニメーションに追従させる。
     // 無効だとLeafletの仕様上、ズーム中だけマーカーが非表示になる。
     markerZoomAnimation: true,
@@ -1153,7 +1167,10 @@ function initializeMap() {
     maxZoom: 12,
     maxNativeZoom: 9,
     tileSize: 256,
-    keepBuffer: 2,
+    // 直前に画面外へ出た背景タイルをすぐ捨てず、戻したとき再利用する。
+    keepBuffer: 4,
+    // ピンチの途中で次々とタイルを更新せず、指を離したときに更新する。
+    updateWhenZooming: false,
     attribution: '地形図: <a href="https://www.esri.com/" target="_blank" rel="noopener noreferrer">Esri</a>、Garmin、GEBCO、NOAA NGDC ほか'
   }).addTo(map);
 

@@ -122,9 +122,12 @@ test('viewport fullscreen toggles and refreshes Leaflet size without saving reco
   assert.equal(a.body.classList.contains('map-fullscreen-active'),true);
   assert.equal(toggle.attributes['aria-pressed'],'true');
   assert.equal(a.calls.invalidation,1);
+  assert.equal(toggle.textContent,'閉じる', '画面上の操作ボタンを短くする');
+  assert.equal(a.elements.get('resetMapView').textContent,'全国へ');
   a.documentEvents.keydown({key:'Escape'});
   assert.equal(panel.classList.contains('is-map-fullscreen'),false);
   assert.equal(toggle.textContent,'全画面表示');
+  assert.equal(a.elements.get('resetMapView').textContent,'全国表示に戻す');
   assert.equal(a.calls.invalidation,2);
   assert.equal(a.calls.writes.length,0);
 });
@@ -166,4 +169,14 @@ test('prefecture overview color reflects visited progress without modifying save
   const after=vm.runInContext('getOverviewMapStyle({properties:{N03_001:"東京都"}}).fillColor',a.context);
   assert.equal(after,'#19865b');
   assert.equal(a.calls.writes.length,0,'地図の再描画ではlocalStorageに書き込まない');
+});
+
+
+test('immersive fullscreen places the map edge-to-edge under compact floating controls',()=>{
+  assert.match(css,/\.map-panel\.is-map-fullscreen #japanMap \{\s*position: absolute;\s*inset: 0;/);
+  assert.match(css,/\.map-panel\.is-map-fullscreen > \.section-heading,/);
+  assert.match(css,/\.map-panel\.is-map-fullscreen > \.map-legend,/);
+  assert.match(css,/\.map-panel\.is-map-fullscreen \.map-toolbar \{\s*position: absolute;/);
+  assert.match(css,/env\(safe-area-inset-top\)/);
+  assert.match(code,/invalidateSize\(\{ animate: false, pan: false \}\)/);
 });

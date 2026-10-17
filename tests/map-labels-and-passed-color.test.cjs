@@ -50,8 +50,8 @@ function createApp() {
     removeLayer(marker) { this.markers = this.markers.filter(m => m !== marker); },
     addLayer(marker) { this.markers.push(marker); }
   };
-  const calls = { zoom: 5, writes: [], layers: [], fetch: [], mapOptions: null };
-  const mapBounds = { contains([lat, lon]) { return lat > 35 && lat < 37 && lon > 139 && lon < 141; }, pad() { return this; } };
+  const calls = { zoom: 5, writes: [], layers: [], fetch: [], mapOptions: null, viewportVisible: true };
+  const mapBounds = { contains([lat, lon]) { return calls.viewportVisible && lat > 35 && lat < 37 && lon > 139 && lon < 141; }, pad() { return this; } };
   const map = {
     setView() { return this; }, fitBounds() { return this; }, setMaxBounds() { return this; },
     getZoom() { return calls.zoom; }, getBounds() { return mapBounds; },
@@ -166,4 +166,26 @@ test('pinch zoom keeps marker animation enabled and reuses visible name markers'
   for (const marker of before) assert.ok(a.layerGroup.markers.includes(marker),
     '見え続ける地名は元のマーカーのまま保持する');
   assert.equal(a.calls.writes.length, 0, '地名操作で訪問記録を書き換えない');
+});
+
+
+test('panning offscreen and back retains the same municipality label DOM markers', async () => {
+  const a = createApp(); await settle();
+  a.calls.zoom = 8;
+  a.elements.get('mapPrefectureFilter').value = '東京都';
+  a.elements.get('mapPrefectureFilter').events.change();
+  await settle();
+  const first = [...a.layerGroup.markers];
+  const previousClears = a.layerGroup.clearCount;
+  assert.equal(first.length, 2);
+  a.calls.viewportVisible = false;
+  vm.runInContext('updateMapLabels()', a.ctx);
+  assert.equal(a.layerGroup.markers.length, 2, '画面外に出ただけでは地名を削除しない');
+  a.calls.viewportVisible = true;
+  vm.runInContext('updateMapLabels()', a.ctx);
+  assert.equal(a.layerGroup.markers.length, 2);
+  for (const marker of first) assert.ok(a.layerGroup.markers.includes(marker),
+    '戻した地名が同一のマーカーである');
+  assert.equal(a.layerGroup.clearCount, previousClears, '往復時に地名全消去を行わない');
+  assert.equal(a.calls.writes.length, 0);
 });
