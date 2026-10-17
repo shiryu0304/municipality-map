@@ -518,6 +518,11 @@ let municipalityNameLayer; // 地図の上に表示する市区町村名（記�
 let lastMapLabelSignature = null; // 同じラベル構成ならDOMの作り直しを省く
 let detailedMapUpdateTimer;
 let mapGeoJSON = null;
+// 全国用の図形は一度だけ都道府県ごとに整理し、県を選ぶたびに全国を走査しない。
+const mapFeaturesByPrefecture = new Map();
+let nationwideMunicipalityFeatures = [];
+const coarseLabelPositionsByPrefecture = new Map();
+let mapFullscreen = false;
 const mapPrefectureFilter = $("mapPrefectureFilter");
 
 function normalizeMapCode(value) {
@@ -636,6 +641,31 @@ function indexMunicipalityLabels(features) {
   return positions;
 }
 
+// 地図は全国データを初回だけ整理し、県別表示ではその県の図形だけをLeafletに渡す。
+function indexMapFeatures(features) {
+  mapFeaturesByPrefecture.clear();
+  nationwideMunicipalityFeatures = [];
+  for (const feature of features) {
+    const municipality = findMunicipalityForFeature(feature);
+    if (!municipality) continue;
+    nationwideMunicipalityFeatures.push(feature);
+    const prefecture = municipality.prefecture;
+    if (!mapFeaturesByPrefecture.has(prefecture)) mapFeaturesByPrefecture.set(prefecture, []);
+    mapFeaturesByPrefecture.get(prefecture).push(feature);
+  }
+}
+
+function indexLabelsByPrefecture() {
+  coarseLabelPositionsByPrefecture.clear();
+  for (const [code, item] of coarseMunicipalityLabelPositions) {
+    const prefecture = item.municipality.prefecture;
+    if (!coarseLabelPositionsByPrefecture.has(prefecture)) {
+      coarseLabelPositionsByPrefecture.set(prefecture, new Map());
+    }
+    coarseLabelPositionsByPrefecture.get(prefecture).set(code, item);
+  }
+}
+
 // まぷすたのように地図上に文字を直接置く。表示レベルに応じて文字数と優先度を制御する。
 function updateMapLabels() {
   if (!map || !window.L || typeof L.layerGroup !== "function" ||
@@ -657,7 +687,10 @@ function updateMapLabels() {
   for (const entry of detailedMapLayers.values()) {
     for (const [code, position] of entry.labels || []) candidates.set(code, position);
   }
-  for (const [code, position] of coarseMunicipalityLabelPositions) {
+  const coarseCandidates = selected
+    ? coarseLabelPositionsByPrefecture.get(selected) || new Map()
+    : coarseMunicipalityLabelPositions;
+  for (const [code, position] of coarseCandidates) {
     if (!candidates.has(code) && !municipalityCodesHiddenByDetail.has(code)) {
       candidates.set(code, position);
     }
@@ -789,22 +822,10 @@ function indexPrefectureBounds() {
 }
 
 function getDetailedMapTargets() {
+  // 全国モードでは軽量な全国図を保ち、詳細境界は県を選んだ場合にのみ読み込む。
+  // 拡大するたびに隣接県の詳細図を取得しないため、描画や通信の負担を抑える。
   const selectedPrefecture = mapPrefectureFilter.value;
-  if (selectedPrefecture) return [selectedPrefecture];
-  if (!map || typeof map.getZoom !== "function" || map.getZoom() < 8 ||
-      typeof map.getBounds !== "function") return [];
-  const view = map.getBounds();
-  const center = map.getCenter();
-  const matches = [];
-  for (const [prefecture, b] of prefectureGeoBounds) {
-    if (b.every(Number.isFinite) && view.intersects(L.latLngBounds([[b[0], b[1]], [b[2], b[3]]]))) {
-      // 県境付近で同時に大量ロードしないよう中心に近い2県までに限定。
-      const distance = Math.abs(center.lat - Math.max(b[0], Math.min(center.lat, b[2]))) +
-        Math.abs(center.lng - Math.max(b[1], Math.min(center.lng, b[3])));
-      matches.push({ prefecture, distance });
-    }
-  }
-  return matches.sort((a, b) => a.distance - b.distance).slice(0, 2).map(item => item.prefecture);
+  return selectedPrefecture ? [selectedPrefecture] : [];
 }
 
 function updateDetailedMapStatus() {
@@ -818,7 +839,7 @@ function updateDetailedMapStatus() {
   } else if (getDetailedMapTargets().some(pref => failedDetailedPrefectures.has(pref))) {
     host.textContent = "詳細境界の取得に失敗したため、従来の境界を表示しています。";
   } else {
-    host.textContent = "地図を拡大するか都道府県を選ぶと、より詳細な境界を読み込みます。";
+    host.textContent = "都道府県を選ぶと、その県だけの詳細な境界を読み込みます。";
   }
 }
 
@@ -838,11 +859,16 @@ function bindMunicipalityPopup(feature, layer) {
   // ポップアップを開くたびに最新の訪問状態を表示する。
   layer.bindPopup(() => {
     const record = getRecord(municipality.code);
-    return `<div class="map-popup-title">${escapeHtml(municipality.name)}</div><div class="map-popup-status">${escapeHtml(municipality.prefecture)} · ${escapeHtml(getStatusLabel(record.status))}</div><button class="map-popup-button" type="button" data-map-code="${escapeHtml(municipality.code)}">記録を編集</button>`;
+    return `<div class="map-popup-title">${escapeHtml(municipality.name)}</div><div class="map-popup-status">${escapeHtml(municipality.prefecture)} · ${escapeHtml(getStatusLabel(record.status))}</div><button class="map-popup-button" type="button" data-map-code="${escapeHtml(municipality.code)}">記録を編集</button> <button class="map-popup-prefecture-button" type="button" data-map-prefecture="${escapeHtml(municipality.prefecture)}">この都道府県を表示</button>`;
   });
   layer.on("popupopen", event => {
     const button = event.popup.getElement()?.querySelector("[data-map-code]");
     if (button) button.addEventListener("click", () => openRecordDialog(municipality), { once: true });
+    const prefectureButton = event.popup.getElement()?.querySelector("[data-map-prefecture]");
+    if (prefectureButton) prefectureButton.addEventListener("click", () => {
+      mapPrefectureFilter.value = municipality.prefecture;
+      renderMapLayer(municipality.prefecture);
+    }, { once: true });
   });
   layer.bindTooltip(`${municipality.prefecture} ${municipality.name}`, { sticky: true, direction: "top" });
 }
@@ -917,11 +943,9 @@ function scheduleDetailedBoundaries() {
 
 function renderMapLayer(prefecture = "") {
   if (!mapGeoJSON || !map) return;
-  const features = mapGeoJSON.features.filter(feature => {
-    const municipality = findMunicipalityForFeature(feature);
-    if (!municipality) return false;
-    return !prefecture || municipality.prefecture === prefecture;
-  });
+  const features = prefecture
+    ? mapFeaturesByPrefecture.get(prefecture) || []
+    : nationwideMunicipalityFeatures;
   if (municipalityGeoLayer) map.removeLayer(municipalityGeoLayer);
   municipalityGeoLayer = L.geoJSON({ type: "FeatureCollection", features }, {
     // Leafletによる境界線の描画時の省略を減らす。元の行政区域データは変更しない。
@@ -953,6 +977,31 @@ function renderMapLayer(prefecture = "") {
   renderPrefectureBorders();
   updateMapLabels();
   void refreshDetailedBoundaries();
+}
+
+// Safari/iPhoneでも使える、ページ内の全画面地図。OSのフルスクリーンAPIには依存しない。
+function setMapFullscreen(expanded) {
+  const panel = $("mapPanel");
+  const button = $("toggleMapFullscreen");
+  if (!panel || !button) return;
+  mapFullscreen = expanded;
+  if (expanded) {
+    panel.classList.add("is-map-fullscreen");
+    document.body.classList.add("map-fullscreen-active");
+  } else {
+    panel.classList.remove("is-map-fullscreen");
+    document.body.classList.remove("map-fullscreen-active");
+  }
+  button.textContent = expanded ? "全画面を閉じる" : "全画面表示";
+  button.setAttribute("aria-pressed", String(expanded));
+  button.setAttribute("aria-label", expanded ? "地図の全画面表示を終了" : "地図を全画面で表示");
+  // 地図容器の大きさが変わったらLeafletに知らせないと、タイルが隙間なく表示されない。
+  const resize = () => {
+    if (map && typeof map.invalidateSize === "function") map.invalidateSize({ animate: false });
+    updateMapLabels();
+  };
+  if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(resize);
+  else resize();
 }
 
 function initializeMap() {
@@ -991,6 +1040,13 @@ function initializeMap() {
     map.on("moveend", scheduleDetailedBoundaries);
     map.on("zoomend", scheduleDetailedBoundaries);
   }
+  const fullscreenButton = $("toggleMapFullscreen");
+  if (fullscreenButton) fullscreenButton.addEventListener("click", () => setMapFullscreen(!mapFullscreen));
+  if (typeof document.addEventListener === "function") {
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && mapFullscreen && !dialog.open) setMapFullscreen(false);
+    });
+  }
   mapPrefectureFilter.addEventListener("change", () => renderMapLayer(mapPrefectureFilter.value));
   $("resetMapView").addEventListener("click", () => {
     mapPrefectureFilter.value = "";
@@ -1015,7 +1071,9 @@ function initializeMap() {
         municipalityByPrefectureAndName.set(`${m.prefecture}\u0000${m.name}`, m);
       });
       populateMapPrefectures();
-      coarseMunicipalityLabelPositions = indexMunicipalityLabels(geojson.features);
+      indexMapFeatures(geojson.features);
+      coarseMunicipalityLabelPositions = indexMunicipalityLabels(nationwideMunicipalityFeatures);
+      indexLabelsByPrefecture();
       renderMapLayer("");
       void loadPrefectureBorders();
       if (!municipalityGeoLayer || municipalityGeoLayer.getLayers().length === 0) {

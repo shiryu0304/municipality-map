@@ -1,41 +1,64 @@
-市区町村制覇アプリ：地図操作の軽量化（2026-10-16）
-対象：shiryu0304/municipality-map
+市区町村制覇アプリ：県別の軽量表示と地図の全画面表示
+対象リポジトリ：shiryu0304/municipality-map
 公開先：https://shiryu0304.github.io/municipality-map/
 
-【変更点】
-1. 地図操作で表示する地名が変わらない場合、地名マーカーの再生成を省略します。
-2. 詳細境界の表示対象が変化していない場合、全国分の境界線スタイル再描画を省略します。
-3. 境界データの自治体コードが一致しない場合に使用する、自治体名による検索を高速化します。
-4. HTMLのJavaScript更新識別子を変更し、古いコードのキャッシュと混同しにくくします。
+【今回の変更】
+1. 地図の「地図の表示範囲」で都道府県を選択すると、その県の市町村境界だけを描画します。
+   全国用の図形は読み込み時に都道府県別に整理して使い回します。
+2. 全国表示では従来の色分け付きの概観地図を維持し、詳細な境界データの自動読み込みを停止します。
+   都道府県を選択すると、その県だけの詳細境界データを読み込みます。
+3. 全国地図上の市区町村を押すと、従来の「記録を編集」に加えて
+   「この都道府県を表示」が選べます。
+4. 「全画面表示」で地図を画面いっぱいに表示できます。
+   再度ボタンを押すかPCのEscキーで元に戻ります。
+   iPhoneのSafariではブラウザのアドレスバー等は残ります。
+5. 市区町村名、県境、訪問・通過・未踏の色、記録編集、JSON保存形式は維持します。
 
-【変更しない仕様】
-訪問・通過・未踏、記録の保存形式、地名の見た目、県境、Esri背景地図、
-都道府県別制覇率、市町村検索、バックアップ・インポート・復元は変更しません。
-新たな永続キャッシュや端末ストレージ保存は追加していません。
+【注意】
+・全国の概観を出すため、全国のデータ取得そのものは必要です。
+・通信環境や端末によっては速度改善を体感できない場合があります。
+・「全国表示」では拡大しても詳細境界に切り替わらず、簡略な境界を使います。
+・県を選ぶと詳細な地図が読み込まれます。取得に失敗したときは簡略な境界が残ります。
+・テストは模擬環境で実行しました。iPhone Safariの実画面の確認は未実施です。
 
-【上書き前】
-1. PCとiPhoneの各ブラウザで「JSONを書き出す」を使い、必要な訪問記録を保存する。
-2. GitHub Desktopで municipality-map を選び、既存の変更があれば先にコミットする。
+【導入前に】
+1. PCとiPhoneの訪問記録をそれぞれアプリの「JSONを書き出す」でバックアップ。
+2. GitHub Desktopで municipality-map リポジトリが選択されていることを確認。
+3. 未コミットの変更がある場合は、内容を確認して先にコミットする。
 
-【上書きするもの】
+【上書きするファイル】
 app.js → municipality-map/app.js
 index.html → municipality-map/index.html
-tests/ の6ファイル → municipality-map/tests/ に同名で上書き・追加
-style.cssは変更なし（上書き不要）
+style.css → municipality-map/style.css
 
-【公開】
-GitHub DesktopのChangesで差分を確認する。
-Summary例: Reduce map redraw work
-Commit to main → Push origin
+tests/ 以下の6ファイル → municipality-map/tests/ 内の同名ファイル
+・map-boundary-detail.test.cjs
+・map-japan-only.test.cjs
+・map-prefecture-border-style.test.cjs
+・prefecture-collapse.test.cjs
+・prefecture-regions.test.cjs
+・map-fullscreen-prefecture.test.cjs （新規）
 
-【動作確認】
-PCとiPhoneで全国表示、都道府県切替、地図拡大縮小・移動、
-地名表示、県境、通過のオレンジ、記録編集と保存を確認する。
-Safariとホーム画面追加版では、両方を個別に確認する。
-ブラウザのサイトデータ削除はしないこと。
+これ以外の既存ファイルは削除しないでください。
 
 【テスト】
-模擬環境で node --test tests/*.test.cjs を実行し、37項目合格。
-受領した既存テストには以前の表示仕様を前提とするものが7件あったため、
-現在の仕様に合わせてテストの期待値／模擬データを更新しています。
-実際のiPhone・Safariでの操作速度改善幅は未測定です。
+Node.js がある場合、プロジェクトフォルダで：
+node --test tests/*.test.cjs
+
+【GitHub Pages公開】
+GitHub Desktopで Changes を確認。
+Summary例： Add prefecture-only map mode and fullscreen view
+Commit to main → Push origin
+公開サイトが反映されるまで待つ。
+
+【PC・iPhone確認項目】
+・全国表示で訪問・通過・未踏の色分け、地名、県境が残る。
+・地図上の地域を押し「この都道府県を表示」を選べる。
+・地図の選択バーで京都府などを選ぶと県内の市町村だけ表示される。
+・全国表示に戻すと全国地図が戻る。
+・全画面表示を開いて拡大・移動・県切り替えができ、閉じると元の大きさに戻る。
+・記録を編集でき、制覇率とJSON記録が変化していない。
+・iPhone Safariとホーム画面版でもボタンが押せる。
+
+表示がおかしい場合、ブラウザのサイトデータは消さずに、GitHub Desktopから
+この修正前のコミットに戻してください（訪問記録を守るため）。

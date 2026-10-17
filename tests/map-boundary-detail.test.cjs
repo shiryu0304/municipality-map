@@ -117,11 +117,13 @@ test('late detail response is ignored after user changes prefecture',async()=>{
   assert.equal(a.calls.writes.length,0);
 });
 
-test('zooming to 8 or beyond triggers detail search for visible prefecture',async()=>{
+test('nationwide zoom stays lightweight until a prefecture is selected',async()=>{
   const a=setup(); await settle();
   a.calls.currentZoom=8;
   // Directly exercise the zoom target selection, independently of timing.
   const names=vm.runInContext('getDetailedMapTargets()',a.ctx);
-  assert.deepEqual(Array.from(names),['東京都']);
+  assert.deepEqual(Array.from(names),[], '全国表示では詳細境界を読み込まない');
+  a.elements.get('mapPrefectureFilter').value='東京都';
+  assert.deepEqual(Array.from(vm.runInContext('getDetailedMapTargets()',a.ctx)),['東京都']);
   assert.equal(a.calls.writes.length,0);
 });

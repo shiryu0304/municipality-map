@@ -201,5 +201,5 @@ test('high zoom reuses Ocean Base zoom 9 tiles without limiting sharp boundaries
   assert.equal(options.maxZoom, 12, 'visitors can still zoom in to see municipality names');
   assert.equal(app.mapCalls.options.maxZoom, 12, 'map zoom itself remains unchanged');
   assert.equal(app.writes.length, 0, 'changing background resolution does not modify records');
-  assert.match(html, /app\.js\?v=lightweight-map-20261016/, 'new app.js is not blocked by cached copy');
+  assert.match(html, /app\.js\?v=fullmap-pref-view-20261016/, 'new app.js is not blocked by cached copy');
 });

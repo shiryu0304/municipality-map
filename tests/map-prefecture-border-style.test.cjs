@@ -91,6 +91,6 @@ test('place names use outlined transparent letters, with changed CSS/JS cache id
   assert.match(css,/\.municipality-name-label--city/);
   assert.doesNotMatch(css,/background: rgba\(255,255,255,\.94\)/);
   assert.match(html,/県境データ：スマートニュース/);
-  assert.match(html,/style\.css\?v=pref-regions-20261015/);
-  assert.match(html,/app\.js\?v=lightweight-map-20261016/);
+  assert.match(html,/style\.css\?v=fullmap-pref-view-20261016/);
+  assert.match(html,/app\.js\?v=fullmap-pref-view-20261016/);
 });

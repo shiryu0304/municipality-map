@@ -194,3 +194,50 @@ dialog::backdrop { background: rgba(17, 35, 28, .48); }
   .municipality-name-label--city { font-size: 13px; }
   .municipality-name-label--town { font-size: 11px; }
 }
+
+
+/* ページ内全画面モード。iOS SafariのFullScreen API対応状況に依存しない。 */
+body.map-fullscreen-active { overflow: hidden; }
+.map-panel.is-map-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100vh; /* 古いブラウザ向け */
+  height: 100dvh; /* Safariのアドレスバーの表示変化にも追従 */
+  margin: 0;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  border: none;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+}
+.map-panel.is-map-fullscreen #japanMap {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+  border-radius: 8px;
+}
+.map-panel.is-map-fullscreen .map-toolbar { flex-shrink: 0; gap: 8px; }
+.map-panel.is-map-fullscreen .section-heading { flex-shrink: 0; margin-bottom: 8px; }
+.map-panel.is-map-fullscreen .map-legend { flex-shrink: 0; margin-bottom: 8px; }
+.map-panel.is-map-fullscreen .map-note,
+.map-panel.is-map-fullscreen #mapDetailStatus { display: none; }
+.map-panel.is-map-fullscreen .map-toolbar .button { width: auto; }
+.map-panel.is-map-fullscreen #toggleMapFullscreen {
+  background: var(--green); color: #fff; border-color: var(--green);
+}
+.map-popup-prefecture-button {
+  background: #fff; color: var(--green-dark); border: 1px solid #aacdbd;
+  border-radius: 7px; padding: 7px 9px; font-size: 12px; cursor: pointer;
+}
+@media (max-width: 650px) {
+  .map-panel.is-map-fullscreen { padding-top: max(8px, env(safe-area-inset-top)); }
+  .map-panel.is-map-fullscreen .map-toolbar label { flex: 1 1 100%; min-width: 0; }
+  .map-panel.is-map-fullscreen .map-toolbar .button { flex: 1 1 auto; font-size: 12px; }
+  .map-panel.is-map-fullscreen .section-heading h2 { font-size: 17px; }
+}
