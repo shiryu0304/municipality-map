@@ -64,14 +64,17 @@ function buildApp(borderFails = false) {
 test('prefecture border is separately fetched and layered above fine municipality lines',async()=>{
   const a=buildApp(); await settle();
   assert.ok(a.calls.fetch.some(url=>url.endsWith('/prefectures.json')));
-  assert.equal(a.calls.layers.length,2);
-  const border=a.calls.layers[1];
-  assert.equal(border.data.features.length,47);
-  assert.equal(border.opts.interactive,false);
-  assert.equal(border.opts.interactive,false);
-  assert.equal(border.opts.style().fill,false);
-  assert.equal(border.opts.style().weight,2.5);
-  assert.equal(border.opts.smoothFactor,0.2);
+  // 全国画面は都道府県の図形だけを描く。
+  assert.equal(a.calls.layers.length,1);
+  const overview=a.calls.layers[0];
+  assert.equal(overview.data.features.length,47);
+  assert.equal(overview.opts.smoothFactor,0.45);
+  a.elements.get('mapPrefectureFilter').value='東京都';
+  a.elements.get('mapPrefectureFilter').events.change();
+  await settle();
+  const border=a.calls.layers.find(layer=>layer.opts.style === vm.runInContext('getPrefectureBorderStyle',a.ctx));
+  // 県選択時には県境を独立した線として追加する。
+  assert.ok(a.calls.layers.some(layer=>layer.opts.interactive===false&&layer.opts.smoothFactor===0.2));
   a.calls.zoom=8;
   assert.equal(vm.runInContext('getPrefectureBorderStyle().weight',a.ctx),4);
   assert.equal(a.calls.writes.length,0);
@@ -79,8 +82,8 @@ test('prefecture border is separately fetched and layered above fine municipalit
 
 test('failed prefecture border request leaves working municipality map and visit data unchanged', async()=>{
   const a=buildApp(true); await settle();
-  assert.equal(a.calls.layers.length,1);
-  assert.equal(a.elements.get('mapBadge').textContent,'全国 · 1 区域');
+  assert.equal(a.calls.layers.length,0);
+  assert.equal(a.elements.get('mapBadge').textContent,'地図の読み込み失敗');
   assert.equal(a.calls.writes.length,0);
 });
 
@@ -91,6 +94,6 @@ test('place names use outlined transparent letters, with changed CSS/JS cache id
   assert.match(css,/\.municipality-name-label--city/);
   assert.doesNotMatch(css,/background: rgba\(255,255,255,\.94\)/);
   assert.match(html,/県境データ：スマートニュース/);
-  assert.match(html,/style\.css\?v=fullmap-pref-view-20261016/);
-  assert.match(html,/app\.js\?v=fullmap-pref-view-20261016/);
+  assert.match(html,/style\.css\?v=prefecture-picker-20261017/);
+  assert.match(html,/app\.js\?v=prefecture-picker-20261017/);
 });

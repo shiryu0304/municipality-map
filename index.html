@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#176b57">
   <title>全国市町村制覇</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <link rel="stylesheet" href="style.css?v=fullmap-pref-view-20261016">
+  <link rel="stylesheet" href="style.css?v=prefecture-picker-20261017">
 </head>
 <body>
   <header class="topbar">
@@ -54,12 +54,13 @@
     </section>
 
     <section class="panel map-panel" id="mapPanel">
-      <div class="section-heading"><div><p class="eyebrow">VISIT MAP</p><h2>全国の訪問マップ</h2></div><span class="badge" id="mapBadge">地図を読み込み中</span></div>
-      <div class="map-legend"><span><i class="legend-dot visited"></i>訪問</span><span><i class="legend-dot passed"></i>通過</span><span><i class="legend-dot unvisited"></i>未踏</span></div>
-      <div class="map-toolbar"><label>地図の表示範囲<select id="mapPrefectureFilter"><option value="">全国</option></select></label><button type="button" id="resetMapView" class="button secondary">全国表示に戻す</button><button type="button" id="toggleMapFullscreen" class="button secondary" aria-pressed="false" aria-label="地図を全画面で表示">全画面表示</button></div>
+      <div class="section-heading"><div><p class="eyebrow">VISIT MAP</p><h2 id="mapModeTitle">全国から都道府県を選択</h2></div><span class="badge" id="mapBadge">地図を読み込み中</span></div>
+      <div class="map-legend" id="mapOverviewLegend"><span><i class="legend-dot progress-zero"></i>0%</span><span><i class="legend-dot progress-low"></i>1～24%</span><span><i class="legend-dot progress-mid"></i>25～49%</span><span><i class="legend-dot progress-high"></i>50～74%</span><span><i class="legend-dot progress-complete"></i>75～100%</span><span>色は訪問率を表します</span></div>
+      <div class="map-legend" id="mapMunicipalityLegend" hidden><span><i class="legend-dot visited"></i>訪問</span><span><i class="legend-dot passed"></i>通過</span><span><i class="legend-dot unvisited"></i>未踏</span></div>
+      <div class="map-toolbar"><label>都道府県を選択<select id="mapPrefectureFilter"><option value="">全国</option></select></label><button type="button" id="resetMapView" class="button secondary" disabled>全国表示に戻す</button><button type="button" id="toggleMapFullscreen" class="button secondary" aria-pressed="false" aria-label="地図を全画面で表示">全画面表示</button></div>
       <div id="japanMap" aria-label="市町村の訪問状況マップ"></div>
-      <p id="mapDetailStatus" class="muted small" role="status">都道府県を選ぶと、その県だけの詳細な境界を読み込みます。</p>
-      <p class="muted small map-note">地形・海底の起伏と市区町村の境界を表示しています。都道府県を選ぶと、その県の詳細地図だけを表示します。全国表示は軽量な概観です。地図を拡大すると、市名を大きな白文字、町村名などを小さな黒文字で表示します（重なりを防ぐため、一部省略する場合があります）。県境は太い線で強調しています。地域を押すと自治体名と訪問記録を確認・編集できます。地図の表示には通信が必要です。背景地図：Esri、Garmin、GEBCO、NOAA NGDC ほか。県境データ：スマートニュース メディア研究所（国土数値情報を加工）。</p>
+      <p id="mapDetailStatus" class="muted small" role="status">地図の都道府県をタップすると、その県の市区町村を読み込みます。</p>
+      <p class="muted small map-note">全国表示では都道府県をタップして選択します。県の色は自治体の訪問率を示し、県を開くと市区町村単位の訪問・通過・未踏を表示します。県内で地域をタップすると記録を編集できます。地図の表示には通信が必要です。背景地図：Esri、Garmin、GEBCO、NOAA NGDC ほか。県境データ：スマートニュース メディア研究所（国土数値情報を加工）。</p>
     </section>
 
     <section class="panel controls">
@@ -136,6 +137,6 @@
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js?v=fullmap-pref-view-20261016"></script>
+  <script src="app.js?v=prefecture-picker-20261017"></script>
 </body>
 </html>

@@ -116,7 +116,7 @@ function buildApp() {
 test('one continuous ocean terrain basemap fills the map with no rectangular tile coverage limit', async () => {
   const app = buildApp();
   await settle();
-  assert.equal(app.fetches.length, 3, "市町村一覧・地図・県境を読み込む");
+  assert.equal(app.fetches.length, 2, "自治体一覧と都道府県境界だけを取得する");
   assert.equal(app.mapCalls.tiles.length, 1, 'do not stack partially covered rectangular tiles');
   const [{url, options}] = app.mapCalls.tiles;
   assert.equal(url, 'https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}');
@@ -129,11 +129,11 @@ test('one continuous ocean terrain basemap fills the map with no rectangular til
   assert.equal(app.mapCalls.layers.filter(layer => layer.options.onEachFeature).length, 1);
   const features = app.mapCalls.layers[0].data.features;
   assert.equal(features.length, 1, 'non-Japan municipality polygons must not enter the displayed layer');
-  assert.equal(features[0].properties.N03_004, '千代田区');
+  assert.equal(features[0].properties.N03_001, '東京都');
   const polygonSettings = app.mapCalls.layers[0].options;
-  assert.equal(polygonSettings.smoothFactor, 0.35);
+  assert.equal(polygonSettings.smoothFactor, 0.45);
   assert.equal(polygonSettings.style(app.tokyoPolygon).fillColor, '#19865b');
-  assert.ok(polygonSettings.style(app.tokyoPolygon).fillOpacity < 0.7);
+  assert.ok(polygonSettings.style(app.tokyoPolygon).fillOpacity < 0.8);
   assert.equal(app.writes.length, 0, 'map display must not change visit records');
 });
 
@@ -148,28 +148,28 @@ test('map stays near Japan and supports prefecture filtering and nationwide rese
   assert.equal(app.mapCalls.maxBounds[1].displayPadding, 0.12, '中央配置後の表示範囲で移動制限を再設定');
   assert.equal(app.mapCalls.pans.length, 0, '日本列島を強制的に下へ移動しない');
   assert.equal(app.mapCalls.fitted.length, 1);
-  assert.deepEqual(Array.from(app.mapCalls.fitted[0].options.padding), [32, 32], '上下左右均等な余白で中央表示する');
+  assert.deepEqual(Array.from(app.mapCalls.fitted[0].options.padding), [20, 20], '上下左右均等な余白で中央表示する');
   assert.equal(app.mapCalls.fitted[0].options.maxZoom, 5);
-  assert.equal(app.elements.get('mapBadge').textContent, '全国 · 1 区域');
+  assert.equal(app.elements.get('mapBadge').textContent, '全国 · 1都道府県');
 
   const filter = app.elements.get('mapPrefectureFilter');
   filter.value = '東京都';
   filter.events.get('change')();
-  assert.equal(app.mapCalls.layers.filter(layer => layer.options.onEachFeature).length, 2);
-  assert.equal(app.mapCalls.layers.filter(layer => layer.options.onEachFeature)[1].data.features.length, 1);
+  // 選択した県だけ詳細データを描く。初期の全国境界は再利用しない。
+  assert.equal(app.mapCalls.layers.filter(layer => layer.options.onEachFeature).length, 1);
   assert.equal(app.mapCalls.fitted[1].options.maxZoom, 8);
   assert.deepEqual(Array.from(app.mapCalls.fitted[1].options.padding), [24, 24]);
-  assert.equal(app.mapCalls.maxBounds.length, 2, 'prefecture selection preserves Japan bounds');
+  assert.equal(app.mapCalls.maxBounds.length, 3, 'prefecture selection clears nationwide movement bounds');
   assert.equal(app.mapCalls.pans.length, 0, '都道府県表示でも強制移動は行わない');
 
   app.elements.get('resetMapView').click();
   assert.equal(filter.value, '');
-  assert.equal(app.mapCalls.layers.filter(layer => layer.options.onEachFeature).length, 3);
+  assert.equal(app.mapCalls.layers.filter(layer => layer.options.onEachFeature).length, 2);
   assert.equal(app.mapCalls.fitted[2].options.maxZoom, 5);
-  assert.deepEqual(Array.from(app.mapCalls.fitted[2].options.padding), [32, 32], '全国表示に戻しても中央に配置する');
-  assert.equal(app.mapCalls.maxBounds.length, 4);
-  assert.equal(app.mapCalls.maxBounds[2], null);
-  assert.equal(app.mapCalls.maxBounds[3].displayPadding, 0.12);
+  assert.deepEqual(Array.from(app.mapCalls.fitted[2].options.padding), [20, 20], '全国表示に戻しても中央に配置する');
+  assert.equal(app.mapCalls.maxBounds.length, 5);
+  assert.equal(app.mapCalls.maxBounds[3], null);
+  assert.equal(app.mapCalls.maxBounds[4].displayPadding, 0.12);
   assert.equal(app.mapCalls.pans.length, 0, '全国表示へ戻すときも強制移動を行わない');
   assert.equal(app.writes.length, 0);
 });
@@ -177,7 +177,7 @@ test('map stays near Japan and supports prefecture filtering and nationwide rese
 
 test('the map has one ocean color while loading and correctly credits its provider', () => {
   const css = readFileSync(path.join(root, 'style.css'), 'utf8');
-  assert.match(html, /地形・海底の起伏と市区町村の境界/);
+  assert.match(html, /県の色は自治体の訪問率/);
   assert.match(html, /背景地図：Esri/);
   assert.match(css, /#japanMap.*background: #32618a/);
   assert.doesNotMatch(css, /japan-name-tiles|japan-hillshade-tiles|mix-blend-mode/);
@@ -201,5 +201,5 @@ test('high zoom reuses Ocean Base zoom 9 tiles without limiting sharp boundaries
   assert.equal(options.maxZoom, 12, 'visitors can still zoom in to see municipality names');
   assert.equal(app.mapCalls.options.maxZoom, 12, 'map zoom itself remains unchanged');
   assert.equal(app.writes.length, 0, 'changing background resolution does not modify records');
-  assert.match(html, /app\.js\?v=fullmap-pref-view-20261016/, 'new app.js is not blocked by cached copy');
+  assert.match(html, /app\.js\?v=prefecture-picker-20261017/, 'new app.js is not blocked by cached copy');
 });

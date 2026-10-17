@@ -83,12 +83,12 @@ test('prefecture selection renders only selected municipality and removes other 
   assert.equal(a.calls.detailUrls.length,0,'全国表示では詳細境界を読み込まない');
   const select=a.elements.get('mapPrefectureFilter');
   select.value='東京都';select.events.change();await settle();
-  let shape=a.calls.layers.filter(layer=>layer.options.onEachFeature).at(-2);
+  let shape=a.calls.layers.filter(layer=>layer.options.onEachFeature).at(-1);
   assert.equal(shape.data.features.length,1);
   assert.equal(shape.data.features[0].properties.N03_001,'東京都');
   assert.equal(a.calls.detailUrls.length,1);
   select.value='京都府';select.events.change();await settle();
-  shape=a.calls.layers.filter(layer=>layer.options.onEachFeature).at(-2);
+  shape=a.calls.layers.filter(layer=>layer.options.onEachFeature).at(-1);
   assert.equal(shape.data.features.length,1);
   assert.equal(shape.data.features[0].properties.N03_001,'京都府');
   assert.equal(a.calls.detailUrls.length,2);
@@ -99,7 +99,10 @@ test('prefecture selection renders only selected municipality and removes other 
 test('tapping an administrative area shows its prefecture-only action without losing record edit',async()=>{
   const a=create();await settle();
   const base=a.calls.layers.find(layer=>layer.options.onEachFeature);
-  const popup=base.shapes[0];
+  // 全国図の都道府県をタップすると詳細表示に移る。
+  base.shapes[0].events.click(); await settle();
+  const detail=a.calls.layers.filter(layer=>layer.options.onEachFeature).at(-1);
+  const popup=detail.shapes[0];
   assert.match(popup.popup(),/記録を編集/);
   assert.match(popup.popup(),/この都道府県を表示/);
   const edit=new ElementStub();const focus=new ElementStub();
@@ -134,4 +137,33 @@ test('fullscreen has phone-safe viewport sizing, and the original map styling re
   assert.match(css,/\.map-panel\.is-map-fullscreen #japanMap/);
   assert.match(css,/\.municipality-name-label--city/);
   assert.match(css,/\.legend-dot\.passed \{ background: #f09740/);
+});
+
+
+test('nationwide prefecture tap opens detail and returning reuses cached prefecture data',async()=>{
+  const a=create();await settle();
+  assert.equal(a.calls.detailUrls.length,0,'全国画面では詳細データを取得しない');
+  const overview=a.calls.layers.find(layer=>layer.options.onEachFeature);
+  assert.equal(overview.data.features.length,2);
+  overview.shapes[0].events.click(); await settle();
+  assert.equal(a.elements.get('mapPrefectureFilter').value,'東京都');
+  assert.equal(a.calls.detailUrls.length,1);
+  a.elements.get('resetMapView').click();await settle();
+  assert.equal(a.elements.get('mapPrefectureFilter').value,'');
+  assert.equal(a.elements.get('mapModeTitle').textContent,'全国から都道府県を選択');
+  a.elements.get('mapPrefectureFilter').value='東京都';
+  a.elements.get('mapPrefectureFilter').events.change();await settle();
+  assert.equal(a.calls.detailUrls.length,1,'同じ県の再表示は取得済みデータを使う');
+  assert.equal(a.elements.get('mapBadge').textContent,'東京都 · 1自治体');
+  assert.equal(a.calls.writes.length,0);
+});
+
+test('prefecture overview color reflects visited progress without modifying saved records',async()=>{
+  const a=create();await settle();
+  const before=vm.runInContext('getOverviewMapStyle({properties:{N03_001:"東京都"}}).fillColor',a.context);
+  assert.equal(before,'#eef2ef');
+  vm.runInContext('records["131016"]={status:"visited",date:"2026-10-17",memo:""}',a.context);
+  const after=vm.runInContext('getOverviewMapStyle({properties:{N03_001:"東京都"}}).fillColor',a.context);
+  assert.equal(after,'#19865b');
+  assert.equal(a.calls.writes.length,0,'地図の再描画ではlocalStorageに書き込まない');
 });

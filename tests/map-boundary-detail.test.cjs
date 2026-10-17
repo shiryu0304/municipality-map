@@ -88,20 +88,19 @@ test('selecting a prefecture loads a distinct 2026 more detailed boundary and ke
   assert.equal(detail.data.features[0].geometry.coordinates[0][0][0],139.71);
   assert.equal(detail.opts.smoothFactor,0.15);
   assert.equal(detail.opts.style(detail.data.features[0]).fillColor,'#19865b');
-  const base=a.calls.layers.filter(l=>l.opts.onEachFeature).at(-2);
-  assert.equal(base.style(a.broad.features[0]).fillOpacity,0,'hide replaced polygon');
+  assert.ok(!a.calls.fetch.some(url => url.includes('N03-21_210101_designated_city')), '全国の市区町村境界を取得しない');
   assert.equal(a.calls.writes.length,0,'render must never overwrite records');
-  assert.match(a.elements.get('mapDetailStatus').textContent,/詳細境界を表示中/);
+  assert.match(a.elements.get('mapDetailStatus').textContent,/市区町村を表示中/);
 });
 
-test('failed detailed fetch preserves original coarse polygons',async()=>{
+test('failed detailed fetch leaves selected prefecture outline visible and records unchanged',async()=>{
   const a=setup({failDetail:true}); await settle();
   a.elements.get('mapPrefectureFilter').value='東京都';
   a.elements.get('mapPrefectureFilter').events.change();
   await settle();
   const base=a.calls.layers.filter(l=>l.opts.onEachFeature).at(-1);
   assert.equal(base.opts.style(a.broad.features[0]).fillColor,'#19865b');
-  assert.match(a.elements.get('mapDetailStatus').textContent,/取得に失敗/);
+  assert.match(a.elements.get('mapDetailStatus').textContent,/読み込めませんでした/);
   assert.equal(a.calls.writes.length,0);
 });
 
@@ -113,7 +112,7 @@ test('late detail response is ignored after user changes prefecture',async()=>{
   assert.equal(typeof a.releaseDetail,'function');
   field.value=''; field.events.change();
   a.releaseDetail(); await settle();
-  assert.equal(a.calls.layers.filter(l=>l.opts.onEachFeature).length,3,'only nationwide, selected and nationwide coarse municipality layers are created');
+  assert.equal(a.calls.layers.filter(l=>l.opts.onEachFeature).length,2,'古い詳細図を表示せず県境の全国表示へ戻る');
   assert.equal(a.calls.writes.length,0);
 });
 
@@ -125,5 +124,19 @@ test('nationwide zoom stays lightweight until a prefecture is selected',async()=
   assert.deepEqual(Array.from(names),[], '全国表示では詳細境界を読み込まない');
   a.elements.get('mapPrefectureFilter').value='東京都';
   assert.deepEqual(Array.from(vm.runInContext('getDetailedMapTargets()',a.ctx)),['東京都']);
+  assert.equal(a.calls.writes.length,0);
+});
+
+
+test('rapid prefecture-to-nationwide-to-same-prefecture keeps current view',async()=>{
+  const a=setup({holdDetail:true}); await settle();
+  const field=a.elements.get('mapPrefectureFilter');
+  field.value='東京都';field.events.change();await settle();
+  assert.equal(typeof a.releaseDetail,'function');
+  field.value='';field.events.change();
+  field.value='東京都';field.events.change();
+  a.releaseDetail();await settle();
+  assert.equal(vm.runInContext('detailedMapLayers.has("東京都")',a.ctx),true);
+  assert.match(a.elements.get('mapBadge').textContent,/東京都/);
   assert.equal(a.calls.writes.length,0);
 });

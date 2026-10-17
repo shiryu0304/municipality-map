@@ -99,8 +99,8 @@ function createApp() {
 
 test('passed municipalities use orange fill, amber UI legend, and visible darker outlines', async () => {
   const a = createApp(); await settle();
-  const passed = vm.runInContext('getMapStatusColor(mapGeoJSON.features[0])', a.ctx);
-  const visited = vm.runInContext('getMapStatusColor(mapGeoJSON.features[2])', a.ctx);
+  const passed = vm.runInContext('getMapStatusColor({properties:{N03_001:"東京都",N03_004:"千代田区",N03_007:"13101"}})', a.ctx);
+  const visited = vm.runInContext('getMapStatusColor({properties:{N03_001:"東京都",N03_004:"新宿区",N03_007:"13104"}})', a.ctx);
   assert.equal(passed.fillColor, '#f09740');
   assert.equal(passed.color, '#9c4811');
   assert.ok(passed.fillOpacity >= 0.7);
@@ -142,5 +142,5 @@ test('label positioning handles islands, and styles remain readable on phone', (
   assert.match(css, /text-shadow: -1px -1px 0 #172019/);
   assert.match(css, /white-space: nowrap; padding: 0; background: transparent/);
   assert.match(css, /pointer-events: none/);
-  assert.match(html, /地図を拡大すると、市名を大きな白文字/);
+  assert.match(html, /県内で地域をタップすると記録を編集/);
 });

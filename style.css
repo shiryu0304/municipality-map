@@ -241,3 +241,19 @@ body.map-fullscreen-active { overflow: hidden; }
   .map-panel.is-map-fullscreen .map-toolbar .button { flex: 1 1 auto; font-size: 12px; }
   .map-panel.is-map-fullscreen .section-heading h2 { font-size: 17px; }
 }
+
+/* A方式：全国の県をタップして県別地図へ切り替える */
+.map-legend[hidden] { display: none !important; }
+.legend-dot.progress-zero { background: #eef2ef; border: 1px solid #264638; }
+.legend-dot.progress-low { background: #c4e7d2; }
+.legend-dot.progress-mid { background: #87cfa8; }
+.legend-dot.progress-high { background: #45ad7d; }
+.legend-dot.progress-complete { background: #19865b; }
+.map-toolbar button:disabled { opacity: .45; cursor: default; }
+#mapDetailStatus { margin: 10px 0; }
+#japanMap.leaflet-container { cursor: grab; }
+#japanMap.leaflet-container:active { cursor: grabbing; }
+@media (max-width: 650px) {
+  #mapOverviewLegend { gap: 8px; font-size: 11px; }
+  .map-toolbar label { width: 100%; }
+}

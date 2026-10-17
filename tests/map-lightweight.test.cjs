@@ -75,6 +75,8 @@ function simulate() {
 
 test('moving without changing labels avoids recreating label DOM elements',async()=>{
   const a=simulate();await settle();
+  const picker=a.elements.get('mapPrefectureFilter');
+  picker.value='東京都';picker.events.change();await settle();
   a.calls.zoom=8;
   vm.runInContext('updateMapLabels()',a.ctx);
   assert.equal(a.labels.markers.length,1);

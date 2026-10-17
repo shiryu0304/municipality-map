@@ -1,7 +1,7 @@
 /*
  * 全国市町村制覇 v0.5
- * この試作品はサンプル自治体のみを収録しています。
- * 本格運用前に data/municipalities.json を全国の自治体データに置き換えてください。
+ * 全国の自治体一覧は起動時に公開データから取得します。
+ * 読み込み失敗時のみサンプル自治体を表示します。
  */
 const SAMPLE_MUNICIPALITIES = [
   { code: "131016", prefecture: "東京都", name: "千代田区", type: "特別区" },
@@ -497,8 +497,7 @@ function normalizeMunicipalityData(data) {
 }
 
 
-// 全国の概観は従来の軽量データを利用する。訪問記録とは独立した表示用データ。
-const MAP_DATA_URL = "https://raw.githubusercontent.com/smartnews-smri/japan-topography/main/data/municipality/geojson/s0001/N03-21_210101_designated_city.json";
+// 全国表示には軽量な都道府県境界を使い、全国の市区町村境界は起動時に取得しない。
 // 拡大表示では2026年行政区域データの県別5%簡略化版を取得する。
 // 0.1%の全国用データより詳細だが、測量データそのものではない。
 const DETAIL_MAP_BASE_URL = "https://raw.githubusercontent.com/ricewin/simplify-japan-geojson/main/GeoJson/";
@@ -507,6 +506,10 @@ const DETAIL_MAP_BASE_URL = "https://raw.githubusercontent.com/ricewin/simplify-
 const PREFECTURE_BORDER_URL = "https://raw.githubusercontent.com/smartnews-smri/japan-topography/main/data/municipality/geojson/s0001/prefectures.json";
 let prefectureBorderGeoJSON = null;
 let prefectureBorderLayer;
+let prefectureOverviewLayer;
+let prefecturePreviewLayer;
+const detailedGeoCache = new Map(); // 直近3県の詳細データだけを再利用する。
+let mapViewVersion = 0; // 通信中に県を切り替えた場合、古い結果を表示しない。
 
 const detailedMapLayers = new Map(); // 県名 -> { layer, codes }
 const detailedMapRequests = new Set();
@@ -754,12 +757,63 @@ function raisePrefectureBorders() {
   }
 }
 
+// 全国表示は47都道府県の図形だけを描き、市区町村の境界は読み込まない。
+function getPrefectureProgressCounts(prefecture) {
+  const items = municipalities.filter(m => m.prefecture === prefecture);
+  const visited = items.filter(m => getRecord(m.code).status === "visited").length;
+  return { visited, total: items.length, percent: items.length ? visited / items.length * 100 : 0 };
+}
+
+function getOverviewMapStyle(feature) {
+  const prefecture = String(feature?.properties?.N03_001 || "").trim();
+  const progress = getPrefectureProgressCounts(prefecture).percent;
+  const fillColor = progress === 0 ? "#eef2ef" : progress < 25 ? "#c4e7d2" :
+    progress < 50 ? "#87cfa8" : progress < 75 ? "#45ad7d" : "#19865b";
+  return { color: "#264638", weight: 1.4, opacity: 0.95,
+    fillColor, fillOpacity: 0.77, lineCap: "round", lineJoin: "round" };
+}
+
+function renderOverviewLayer() {
+  if (!map || !prefectureBorderGeoJSON || typeof L.geoJSON !== "function") return;
+  if (prefectureOverviewLayer) map.removeLayer(prefectureOverviewLayer);
+  const validFeatures = prefectureBorderGeoJSON.features.filter(feature =>
+    municipalities.some(m => m.prefecture === feature.properties?.N03_001));
+  prefectureOverviewLayer = L.geoJSON({ type: "FeatureCollection", features: validFeatures }, {
+    smoothFactor: 0.45,
+    style: getOverviewMapStyle,
+    onEachFeature(feature, layer) {
+      const prefecture = String(feature?.properties?.N03_001 || "").trim();
+      if (!prefecture || !municipalities.some(m => m.prefecture === prefecture)) return;
+      // スマホではタップ、PCではクリックして県別表示に進む。
+      if (typeof layer.on === "function") layer.on("click", () => {
+        mapPrefectureFilter.value = prefecture;
+        renderMapLayer(prefecture);
+      });
+      if (typeof layer.bindTooltip === "function") layer.bindTooltip(() => {
+        const progress = getPrefectureProgressCounts(prefecture);
+        return `${prefecture} ・ ${progress.visited} / ${progress.total} 自治体（${progress.percent.toFixed(1)}%）`;
+      }, { sticky: true, direction: "top" });
+    }
+  }).addTo(map);
+  const bounds = prefectureOverviewLayer.getBounds?.();
+  if (bounds?.isValid()) {
+    map.setMaxBounds(null);
+    map.fitBounds(bounds, { padding: [20, 20], maxZoom: 5 });
+    // 北海道～沖縄の全体を見せ、全国モードでの移動範囲だけ制限する。
+    const visibleBounds = map.getBounds?.();
+    if (visibleBounds?.pad) map.setMaxBounds(visibleBounds.pad(0.12));
+  }
+  $("mapBadge").textContent = `全国 · ${new Set(validFeatures.map(f => f.properties?.N03_001)).size}都道府県`;
+  $("mapDetailStatus").textContent = "地図の都道府県をタップすると、その県の市区町村を読み込みます。";
+}
+
 function renderPrefectureBorders() {
   if (!map || !prefectureBorderGeoJSON || typeof L.geoJSON !== "function") return;
   if (prefectureBorderLayer) map.removeLayer(prefectureBorderLayer);
+  if (!mapPrefectureFilter.value) { prefectureBorderLayer = null; return; }
   const selected = mapPrefectureFilter.value;
   const features = prefectureBorderGeoJSON.features.filter(feature =>
-    !selected || feature.properties?.N03_001 === selected);
+    feature.properties?.N03_001 === selected);
   prefectureBorderLayer = L.geoJSON({type: "FeatureCollection", features}, {
     style: getPrefectureBorderStyle, interactive: false, smoothFactor: 0.2
   }).addTo(map);
@@ -776,13 +830,17 @@ async function loadPrefectureBorders() {
       throw new Error("県境データの形式が不正です");
     }
     prefectureBorderGeoJSON = data;
-    renderPrefectureBorders();
+    renderMapLayer(mapPrefectureFilter.value);
   } catch (error) {
-    console.warn("県境データの取得に失敗しました。市町村境界は従来どおり表示します。", error);
+    console.warn("全国の都道府県地図を取得できませんでした。", error);
+    $("mapBadge").textContent = "地図の読み込み失敗";
+    $("mapDetailStatus").textContent = "全国の県境データを取得できません。インターネット接続を確認し、再読み込みしてください。";
   }
 }
 
 function refreshMapStyles() {
+  if (prefectureOverviewLayer) prefectureOverviewLayer.setStyle(getOverviewMapStyle);
+  if (prefecturePreviewLayer) prefecturePreviewLayer.setStyle(getOverviewMapStyle);
   if (municipalityGeoLayer) municipalityGeoLayer.setStyle(getCoarseMapStatusColor);
   for (const entry of detailedMapLayers.values()) entry.layer.setStyle(getMapStatusColor);
   raisePrefectureBorders();
@@ -832,14 +890,16 @@ function updateDetailedMapStatus() {
   const host = $("mapDetailStatus");
   if (!host) return;
   const activeCount = detailedMapLayers.size;
-  if (detailedMapRequests.size) {
+  if (!mapPrefectureFilter.value) {
+    host.textContent = "地図の都道府県をタップすると、その県の市区町村を読み込みます。";
+  } else if (detailedMapRequests.size && !detailedMapLayers.has(mapPrefectureFilter.value)) {
     host.textContent = "詳細な市区町村境界を読み込み中です…";
-  } else if (activeCount) {
-    host.textContent = "詳細境界を表示中（2026年行政区域データ・県別5％簡略化版）。";
+  } else if (activeCount && detailedMapLayers.has(mapPrefectureFilter.value)) {
+    host.textContent = "県内の市区町村を表示中です。地域をタップすると訪問記録を編集できます。";
   } else if (getDetailedMapTargets().some(pref => failedDetailedPrefectures.has(pref))) {
-    host.textContent = "詳細境界の取得に失敗したため、従来の境界を表示しています。";
+    host.textContent = "この県の詳細境界を読み込めませんでした。通信を確認し、別の県に切り替えてから再度お試しください。";
   } else {
-    host.textContent = "都道府県を選ぶと、その県だけの詳細な境界を読み込みます。";
+    host.textContent = "都道府県を選ぶと、その県だけの市区町村境界を読み込みます。";
   }
 }
 
@@ -873,59 +933,78 @@ function bindMunicipalityPopup(feature, layer) {
   layer.bindTooltip(`${municipality.prefecture} ${municipality.name}`, { sticky: true, direction: "top" });
 }
 
+function rememberDetailedGeoJSON(prefecture, features) {
+  detailedGeoCache.delete(prefecture);
+  detailedGeoCache.set(prefecture, features);
+  if (detailedGeoCache.size > 3) detailedGeoCache.delete(detailedGeoCache.keys().next().value);
+}
+
 async function refreshDetailedBoundaries() {
-  if (!mapGeoJSON || !map) return;
-  const targets = new Set(getDetailedMapTargets());
-  let changedLayers = false;
-  for (const [prefecture, entry] of detailedMapLayers) {
-    if (!targets.has(prefecture)) {
+  if (!map) return;
+  const prefecture = mapPrefectureFilter.value;
+  const viewVersion = mapViewVersion;
+  // 前に選んでいた県の図形は削除。取得済みのデータだけ最大3県まで保持。
+  for (const [name, entry] of detailedMapLayers) {
+    if (name !== prefecture) {
       map.removeLayer(entry.layer);
-      detailedMapLayers.delete(prefecture);
-      changedLayers = true;
+      detailedMapLayers.delete(name);
     }
   }
-  // 表示中の詳細レイヤーが変わらなければ、全自治体の描画スタイルは触らない。
-  if (changedLayers) refreshDetailVisibility();
-  else updateDetailedMapStatus();
-
-  for (const prefecture of targets) {
-    if (detailedMapLayers.has(prefecture) || detailedMapRequests.has(prefecture) ||
-        failedDetailedPrefectures.has(prefecture)) continue;
-    const municipality = municipalities.find(m => m.prefecture === prefecture);
-    if (!municipality) continue;
-    const prefCode = normalizeMapCode(municipality.code).slice(0, 2);
-    detailedMapRequests.add(prefecture);
-    updateDetailedMapStatus();
-    try {
+  if (!prefecture) { updateDetailedMapStatus(); return; }
+  if (detailedMapLayers.has(prefecture)) { updateDetailedMapStatus(); return; }
+  if (detailedMapRequests.has(prefecture)) return;
+  detailedMapRequests.add(prefecture);
+  updateDetailedMapStatus();
+  try {
+    let features = detailedGeoCache.get(prefecture);
+    if (!features) {
+      const representative = municipalities.find(m => m.prefecture === prefecture);
+      if (!representative) throw new Error("自治体一覧に都道府県が見つかりません");
+      const prefCode = normalizeMapCode(representative.code).slice(0, 2);
       const response = await fetch(`${DETAIL_MAP_BASE_URL}${prefCode}.json`);
       if (!response.ok) throw new Error(`詳細境界 HTTP ${response.status}`);
       const data = await response.json();
       if (data?.type !== "FeatureCollection" || !Array.isArray(data.features)) {
         throw new Error("詳細境界の形式が不正です");
       }
-      const features = data.features.filter(feature => {
+      features = data.features.filter(feature => {
         const m = findMunicipalityForFeature(feature);
         return m && m.prefecture === prefecture && feature.geometry;
       });
-      const codes = new Set(features.map(feature => findMunicipalityForFeature(feature).code));
-      if (!codes.size) throw new Error("自治体一覧と詳細境界を照合できません");
-      // 通信中に地域を変更した場合は、古い地域の地図を後から追加しない。
-      if (!getDetailedMapTargets().includes(prefecture)) continue;
-      const layer = L.geoJSON({ type: "FeatureCollection", features }, {
-        smoothFactor: 0.15,
-        style: getMapStatusColor,
-        onEachFeature: bindMunicipalityPopup
-      }).addTo(map);
-      detailedMapLayers.set(prefecture, { layer, codes, labels: indexMunicipalityLabels(features) });
-      refreshDetailVisibility();
-      raisePrefectureBorders();
-    } catch (error) {
-      console.warn(`${prefecture}の詳細境界を読み込めませんでした。`, error);
+      if (!features.length) throw new Error("自治体一覧と詳細境界を照合できません");
+      rememberDetailedGeoJSON(prefecture, features);
+    }
+    // 読み込み中に別の県へ移動した場合、その結果を画面に追加しない。
+    if (mapViewVersion !== viewVersion || mapPrefectureFilter.value !== prefecture) return;
+    const codes = new Set(features.map(feature => findMunicipalityForFeature(feature)?.code).filter(Boolean));
+    const layer = L.geoJSON({ type: "FeatureCollection", features }, {
+      smoothFactor: 0.15,
+      style: getMapStatusColor,
+      onEachFeature: bindMunicipalityPopup
+    }).addTo(map);
+    detailedMapLayers.set(prefecture, { layer, codes, labels: indexMunicipalityLabels(features) });
+    if (prefecturePreviewLayer) {
+      map.removeLayer(prefecturePreviewLayer);
+      prefecturePreviewLayer = null;
+    }
+    const bounds = layer.getBounds?.();
+    if (bounds?.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8 });
+    failedDetailedPrefectures.delete(prefecture);
+    updateMapLabels();
+    raisePrefectureBorders();
+    $("mapBadge").textContent = `${prefecture} · ${codes.size}自治体`;
+  } catch (error) {
+    console.warn(`${prefecture}の詳細境界を読み込めませんでした。`, error);
+    if (mapViewVersion === viewVersion && mapPrefectureFilter.value === prefecture) {
       failedDetailedPrefectures.add(prefecture);
-    } finally {
-      detailedMapRequests.delete(prefecture);
-      // 読み込み失敗・対象変更では境界を描き直さず、案内文だけ更新する。
-      updateDetailedMapStatus();
+      $("mapBadge").textContent = `${prefecture} · 読み込み失敗`;
+    }
+  } finally {
+    detailedMapRequests.delete(prefecture);
+    if (mapViewVersion === viewVersion) updateDetailedMapStatus();
+    // A→B→Aのように高速で県を戻した場合、途中で破棄した結果を現在画面へ反映し直す。
+    else if (mapPrefectureFilter.value === prefecture && !detailedMapLayers.has(prefecture)) {
+      void refreshDetailedBoundaries();
     }
   }
 }
@@ -942,40 +1021,59 @@ function scheduleDetailedBoundaries() {
 }
 
 function renderMapLayer(prefecture = "") {
-  if (!mapGeoJSON || !map) return;
-  const features = prefecture
-    ? mapFeaturesByPrefecture.get(prefecture) || []
-    : nationwideMunicipalityFeatures;
-  if (municipalityGeoLayer) map.removeLayer(municipalityGeoLayer);
-  municipalityGeoLayer = L.geoJSON({ type: "FeatureCollection", features }, {
-    // Leafletによる境界線の描画時の省略を減らす。元の行政区域データは変更しない。
-    smoothFactor: 0.35,
-    style: getCoarseMapStatusColor,
-    onEachFeature: bindMunicipalityPopup
-  }).addTo(map);
-  const bounds = municipalityGeoLayer.getBounds();
-  if (bounds.isValid()) {
-    // Keep panning near Japan even when users zoom or drag the map.
-    // Do not replace this with fixed coordinates: the bounds come from actual map data.
-    if (!prefecture) {
-      // 以前の表示範囲制限を解除してから、全国の境界を中央に配置する。
-      map.setMaxBounds(null);
-      // 上下左右に同じ余白を確保する。panByで強制的に下へずらさない。
-      // 北海道から沖縄までの表示範囲は、実際の行政界データから自動計算する。
-      map.fitBounds(bounds, { padding: [32, 32], maxZoom: 5 });
-      // 現在の全国表示を含む範囲内でのみ地図を移動できるようにする。
-      map.setMaxBounds(map.getBounds().pad(0.12));
-    } else {
-      // 都道府県表示はこれまでの拡大率を保ちつつ、適度な余白を確保する。
-      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8 });
+  if (!map) return;
+  mapViewVersion++;
+  mapPrefectureFilter.value = prefecture;
+  // 県別画面に移る前に全国の図形を取り除き、描画数を減らす。
+  if (prefectureOverviewLayer) {
+    map.removeLayer(prefectureOverviewLayer);
+    prefectureOverviewLayer = null;
+  }
+  if (prefecturePreviewLayer) {
+    map.removeLayer(prefecturePreviewLayer);
+    prefecturePreviewLayer = null;
+  }
+  if (municipalityGeoLayer) {
+    map.removeLayer(municipalityGeoLayer);
+    municipalityGeoLayer = null;
+  }
+  if (prefectureBorderLayer) {
+    map.removeLayer(prefectureBorderLayer);
+    prefectureBorderLayer = null;
+  }
+  for (const [name, entry] of detailedMapLayers) {
+    if (name !== prefecture) {
+      map.removeLayer(entry.layer);
+      detailedMapLayers.delete(name);
     }
   }
-  const count = features.length;
-  $("mapBadge").textContent = prefecture ? `${prefecture} · ${count.toLocaleString("ja-JP")} 区域` : `全国 · ${count.toLocaleString("ja-JP")} 区域`;
-  $("mapBadge").style.color = "#12664f";
-  $("mapBadge").style.background = "#dff4e9";
+  const isOverview = !prefecture;
+  if (isOverview) $("mapPanel").classList.add("is-national-mode");
+  else $("mapPanel").classList.remove("is-national-mode");
+  $("mapModeTitle").textContent = isOverview ? "全国から都道府県を選択" : `${prefecture}の市区町村マップ`;
+  $("mapOverviewLegend").hidden = !isOverview;
+  $("mapMunicipalityLegend").hidden = isOverview;
+  $("resetMapView").disabled = isOverview;
+  lastMapLabelSignature = null;
+  municipalityNameLayer?.clearLayers();
+  if (isOverview) {
+    renderOverviewLayer();
+    updateDetailedMapStatus();
+    return;
+  }
+  // 全国モードの移動制限を解除し、県の形に合わせて拡大する。
+  map.setMaxBounds(null);
+  const features = prefectureBorderGeoJSON?.features.filter(
+    feature => feature.properties?.N03_001 === prefecture) || [];
+  if (features.length) {
+    prefecturePreviewLayer = L.geoJSON({ type: "FeatureCollection", features }, {
+      style: getOverviewMapStyle, interactive: false, smoothFactor: 0.3
+    }).addTo(map);
+    const bounds = prefecturePreviewLayer.getBounds?.();
+    if (bounds?.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8 });
+  }
+  $("mapBadge").textContent = `${prefecture} · 読み込み中`;
   renderPrefectureBorders();
-  updateMapLabels();
   void refreshDetailedBoundaries();
 }
 
@@ -1053,40 +1151,15 @@ function initializeMap() {
     renderMapLayer("");
   });
 
-  fetch(MAP_DATA_URL)
-    .then(response => {
-      if (!response.ok) throw new Error(`地図データ HTTP ${response.status}`);
-      return response.json();
-    })
-    .then(geojson => {
-      if (!geojson || geojson.type !== "FeatureCollection" || !Array.isArray(geojson.features)) {
-        throw new Error("地図データの形式が想定と異なります");
-      }
-      mapGeoJSON = geojson;
-      indexPrefectureBounds();
-      municipalityByMapCode.clear();
-      municipalityByPrefectureAndName.clear();
-      municipalities.forEach(m => {
-        municipalityByMapCode.set(normalizeMapCode(m.code), m);
-        municipalityByPrefectureAndName.set(`${m.prefecture}\u0000${m.name}`, m);
-      });
-      populateMapPrefectures();
-      indexMapFeatures(geojson.features);
-      coarseMunicipalityLabelPositions = indexMunicipalityLabels(nationwideMunicipalityFeatures);
-      indexLabelsByPrefecture();
-      renderMapLayer("");
-      void loadPrefectureBorders();
-      if (!municipalityGeoLayer || municipalityGeoLayer.getLayers().length === 0) {
-        throw new Error("自治体一覧と地図の境界データを対応付けできませんでした");
-      }
-    })
-    .catch(error => {
-      console.warn("地図データを読み込めませんでした。", error);
-      $("mapBadge").textContent = "地図データの読み込み失敗";
-      $("mapBadge").style.color = "#9b3f36";
-      $("mapBadge").style.background = "#fbe8e5";
-      $("saveStatus").textContent = "自治体一覧は使えますが、地図データの読み込みに失敗しました。インターネット接続を確認してください。";
-    });
+  // コードと自治体名の対応表だけ先に作る。全国市区町村の巨大な境界データは取得しない。
+  municipalityByMapCode.clear();
+  municipalityByPrefectureAndName.clear();
+  municipalities.forEach(m => {
+    municipalityByMapCode.set(normalizeMapCode(m.code), m);
+    municipalityByPrefectureAndName.set(`${m.prefecture}\u0000${m.name}`, m);
+  });
+  populateMapPrefectures();
+  void loadPrefectureBorders();
 }
 
 function escapeHtml(value) {

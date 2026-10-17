@@ -68,8 +68,8 @@ test('legacy wanted record shows as unvisited without mutating storage on load',
   assert.equal(vm.runInContext('getRecord("131041").status',a.context),'unvisited');
   assert.equal(vm.runInContext('getRecord("131041").memo',a.context),'save this');
   assert.equal(JSON.parse(a.localStore.get('municipality-conquest-records-v1'))['131041'].status,'want');
-  assert.equal(vm.runInContext('getMapStatusColor(mapGeoJSON.features[2]).fillColor',a.context),'#f09740');
-  assert.equal(vm.runInContext('getMapStatusColor(mapGeoJSON.features[0]).fillColor',a.context),'#19865b');
+  assert.equal(vm.runInContext('getMapStatusColor({properties:{N03_001:"東京都",N03_004:"渋谷区",N03_007:"13113"}}).fillColor',a.context),'#f09740');
+  assert.equal(vm.runInContext('getMapStatusColor({properties:{N03_001:"東京都",N03_004:"千代田区",N03_007:"13101"}}).fillColor',a.context),'#19865b');
   a.els.get('statusFilter').value='passed';
   assert.deepEqual(Array.from(vm.runInContext('getFilteredMunicipalities().map(m=>m.name)',a.context)),['渋谷区']);
 });
@@ -95,7 +95,7 @@ test('map popup reflects newly saved status without reloading map',async()=>{
   const a=start({'131016':{status:'visited',date:'2026-01-01',memo:''}});await wait();
   const popupLayer={bindPopup(fn){this.render=fn;},on(){},bindTooltip(){}};
   a.context.popupLayer=popupLayer;
-  vm.runInContext('bindMunicipalityPopup(mapGeoJSON.features[0], popupLayer)',a.context);
+  vm.runInContext('bindMunicipalityPopup({properties:{N03_001:"東京都",N03_004:"千代田区",N03_007:"13101"}}, popupLayer)',a.context);
   assert.match(popupLayer.render(),/訪問/);
   vm.runInContext('openRecordDialog(municipalities.find(m=>m.name==="千代田区"))',a.context);
   a.els.get('recordStatus').value='passed';
