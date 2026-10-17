@@ -44,12 +44,13 @@ function createApp() {
     ...Array.from({length: 1000}, (_, i) => ({ lgcode: String(800000 + i), pref: '北海道', city: `模擬${i}市` }))
   ];
   const layerGroup = {
-    markers: [],
+    markers: [], clearCount: 0,
     addTo() { return this; },
-    clearLayers() { this.markers = []; },
+    clearLayers() { this.markers = []; this.clearCount++; },
+    removeLayer(marker) { this.markers = this.markers.filter(m => m !== marker); },
     addLayer(marker) { this.markers.push(marker); }
   };
-  const calls = { zoom: 5, writes: [], layers: [], fetch: [] };
+  const calls = { zoom: 5, writes: [], layers: [], fetch: [], mapOptions: null };
   const mapBounds = { contains([lat, lon]) { return lat > 35 && lat < 37 && lon > 139 && lon < 141; }, pad() { return this; } };
   const map = {
     setView() { return this; }, fitBounds() { return this; }, setMaxBounds() { return this; },
@@ -59,7 +60,7 @@ function createApp() {
     latLngToContainerPoint([lat, lon]) { return { x: (lon - 139) * 900, y: (lat - 35) * 900 }; }
   };
   const L = {
-    map: () => map,
+    map: (_id, options) => { calls.mapOptions = options; return map; },
     tileLayer: () => ({ addTo() {} }),
     layerGroup: () => layerGroup,
     marker: (coordinate, options) => ({ coordinate, options }),
@@ -143,4 +144,26 @@ test('label positioning handles islands, and styles remain readable on phone', (
   assert.match(css, /white-space: nowrap; padding: 0; background: transparent/);
   assert.match(css, /pointer-events: none/);
   assert.match(html, /県内で地域をタップすると記録を編集/);
+});
+
+
+test('pinch zoom keeps marker animation enabled and reuses visible name markers', async () => {
+  const a = createApp(); await settle();
+  assert.equal(a.calls.mapOptions.markerZoomAnimation, true,
+    '拡大縮小中もLeafletのマーカーをアニメーションに追従させる');
+  a.calls.zoom = 8;
+  a.elements.get('mapPrefectureFilter').value = '東京都';
+  a.elements.get('mapPrefectureFilter').events.change();
+  await settle();
+  const before = [...a.layerGroup.markers];
+  assert.equal(before.length, 2);
+  const clearsBefore = a.layerGroup.clearCount;
+  a.calls.zoom = 9;
+  vm.runInContext('updateMapLabels()', a.ctx);
+  assert.equal(a.layerGroup.clearCount, clearsBefore,
+    '倍率が変わるたびに地名を全消去しない');
+  assert.equal(a.layerGroup.markers.length, 2);
+  for (const marker of before) assert.ok(a.layerGroup.markers.includes(marker),
+    '見え続ける地名は元のマーカーのまま保持する');
+  assert.equal(a.calls.writes.length, 0, '地名操作で訪問記録を書き換えない');
 });

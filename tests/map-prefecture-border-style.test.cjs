@@ -95,5 +95,5 @@ test('place names use outlined transparent letters, with changed CSS/JS cache id
   assert.doesNotMatch(css,/background: rgba\(255,255,255,\.94\)/);
   assert.match(html,/県境データ：スマートニュース/);
   assert.match(html,/style\.css\?v=prefecture-picker-20261017/);
-  assert.match(html,/app\.js\?v=prefecture-picker-20261017/);
+  assert.match(html,/app\.js\?v=pinch-label-stability-20261017/);
 });

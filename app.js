@@ -519,6 +519,7 @@ const prefectureGeoBounds = new Map(); // 県名 -> [南端, 西端, 北端, 東
 let coarseMunicipalityLabelPositions = new Map();
 let municipalityNameLayer; // 地図の上に表示する市区町村名（記録データとは独立）
 let lastMapLabelSignature = null; // 同じラベル構成ならDOMの作り直しを省く
+const municipalityLabelMarkers = new Map(); // 地名ごとのマーカーを保持し、拡大縮小後も再利用
 let detailedMapUpdateTimer;
 let mapGeoJSON = null;
 // 全国用の図形は一度だけ都道府県ごとに整理し、県を選ぶたびに全国を走査しない。
@@ -680,6 +681,7 @@ function updateMapLabels() {
   if (zoom < 7) {
     if (lastMapLabelSignature !== "hidden") {
       municipalityNameLayer.clearLayers();
+      municipalityLabelMarkers.clear();
       lastMapLabelSignature = "hidden";
     }
     return;
@@ -724,21 +726,38 @@ function updateMapLabels() {
     chosen.push({ ...item, kind });
     if (occupied.length >= limit) break;
   }
-  // Leafletは地図移動時に既存のマーカーを自動追従させる。
-  // 表示対象と位置が同じなら破棄・再生成をしないことで、スマートフォンのDOM負荷を抑える。
+  // 地名はLeafletのマーカーで表示する。ピンチ中はLeafletのアニメーションに追従させ、
+  // 指を離したあとは「残る地名」を作り直さずに使い続けることで点滅を防ぐ。
   const signature = chosen.map(item =>
     `${item.municipality.code}:${item.lat}:${item.lon}:${item.kind}`).join("|");
   if (signature === lastMapLabelSignature) return;
-  municipalityNameLayer.clearLayers();
+  const desired = new Map(chosen.map(item => [item.municipality.code, item]));
+  // テスト用の簡易LeafletではremoveLayerがない場合があるため、その場合だけ従来方式。
+  if (typeof municipalityNameLayer.removeLayer !== "function") {
+    municipalityNameLayer.clearLayers();
+    municipalityLabelMarkers.clear();
+  } else {
+    for (const [code, saved] of municipalityLabelMarkers) {
+      const next = desired.get(code);
+      if (!next || saved.lat !== next.lat || saved.lon !== next.lon || saved.kind !== next.kind) {
+        municipalityNameLayer.removeLayer(saved.marker);
+        municipalityLabelMarkers.delete(code);
+      }
+    }
+  }
   for (const item of chosen) {
-    municipalityNameLayer.addLayer(L.marker([item.lat, item.lon], {
+    const code = item.municipality.code;
+    if (municipalityLabelMarkers.has(code)) continue;
+    const marker = L.marker([item.lat, item.lon], {
       icon: L.divIcon({
         className: "municipality-label-icon",
         html: `<span class="municipality-name-label municipality-name-label--${item.kind}">${escapeHtml(item.municipality.name)}</span>`,
         iconSize: [0, 0], iconAnchor: [0, 0]
       }),
       interactive: false, keyboard: false
-    }));
+    });
+    municipalityNameLayer.addLayer(marker);
+    municipalityLabelMarkers.set(code, { marker, lat: item.lat, lon: item.lon, kind: item.kind });
   }
   lastMapLabelSignature = signature;
 }
@@ -1056,6 +1075,7 @@ function renderMapLayer(prefecture = "") {
   $("resetMapView").disabled = isOverview;
   lastMapLabelSignature = null;
   municipalityNameLayer?.clearLayers();
+  municipalityLabelMarkers.clear();
   if (isOverview) {
     renderOverviewLayer();
     updateDetailedMapStatus();
@@ -1114,6 +1134,9 @@ function initializeMap() {
   map = L.map("japanMap", {
     scrollWheelZoom: true,
     preferCanvas: true,
+    // 地名マーカーもピンチ拡大縮小のアニメーションに追従させる。
+    // 無効だとLeafletの仕様上、ズーム中だけマーカーが非表示になる。
+    markerZoomAnimation: true,
     minZoom: 3,
     maxZoom: 12,
     maxBoundsViscosity: 1.0
