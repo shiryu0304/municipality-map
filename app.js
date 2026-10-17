@@ -859,9 +859,24 @@ function refreshMapStyles() {
 }
 
 function populateMapPrefectures() {
-  const prefectures = [...new Set(municipalities.map(m => m.prefecture))].sort((a, b) => a.localeCompare(b, "ja"));
+  // 他の都道府県一覧と同じ地方区分・北から南の順で表示する。
+  // 地方名は選択不可の見出し。都道府県の value は変更しない。
+  const available = new Set(municipalities.map(m => m.prefecture));
+  const known = new Set(PREFECTURE_REGIONS.flatMap(region => region.prefectures));
+  const others = [...available].filter(name => !known.has(name)).sort((a, b) => a.localeCompare(b, "ja"));
+  const regions = others.length ? [...PREFECTURE_REGIONS, { name: "その他", prefectures: others }] : PREFECTURE_REGIONS;
+
   mapPrefectureFilter.replaceChildren(new Option("全国", ""));
-  prefectures.forEach(pref => mapPrefectureFilter.add(new Option(pref, pref)));
+  for (const region of regions) {
+    const present = region.prefectures.filter(name => available.has(name));
+    if (!present.length) continue;
+    const group = document.createElement("optgroup");
+    group.label = region.name;
+    for (const prefecture of present) {
+      group.append(new Option(prefecture, prefecture));
+    }
+    mapPrefectureFilter.append(group);
+  }
 }
 
 // 一度だけ全国の境界データから都道府県ごとの大まかな範囲を計算する。
