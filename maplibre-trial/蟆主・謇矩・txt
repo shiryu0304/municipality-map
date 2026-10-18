@@ -1,0 +1,102 @@
+市区町村制覇アプリ — MapLibre地図試作版（元アプリは変更しません）
+作成日：2026年10月18日
+
+【このZIPに入っているもの】
+maplibre-trial/
+  index.html        試作版だけの画面
+  style.css         試作版だけのデザイン
+  app.js            MapLibreの地図操作・データ取得・表示
+  map-logic.js      既存アプリと共通の自治体コード・色分け処理を再現
+  導入手順.txt        このファイル
+  tests/            試作版のデータ処理テスト
+
+既存の index.html、style.css、app.js を置き換える必要はありません。
+このZIPには .git フォルダも既存ソースコードも含めていません。
+
+【最初にバックアップ】
+1. 元アプリの「JSONを書き出す」で訪問記録を保存してください。
+   PCとiPhoneの両方で別々に使っている場合は、それぞれ保存します。
+2. GitHub Desktopを開きます。
+3. 「Changes」に未保存の修正があれば先にCommitを作成してください。
+4. 念のため、Windowsエクスプローラーで「municipality-map」フォルダを
+   別の場所にコピーしておくと安心です。
+
+【導入方法：元アプリに触れずに別ページを追加】
+1. ZIPを右クリック →「すべて展開」を選択します。
+2. 展開すると「maplibre-trial」というフォルダがあります。
+3. VS Codeで、現在の municipality-map プロジェクトフォルダを開きます。
+4. Windowsのエクスプローラーでその municipality-map フォルダを開き、
+   「maplibre-trial」フォルダを丸ごとその中へコピーします。
+   ※ZIPを展開したフォルダの中身だけではなく、maplibre-trialフォルダごと入れます。
+   ※既存の index.html / app.js / style.css は絶対に置き換えません。
+5. VS Codeの左欄が次のような配置なら正解です。
+   municipality-map/
+     index.html         ←既存のまま
+     app.js             ←既存のまま
+     style.css          ←既存のまま
+     maplibre-trial/    ←今回追加
+       index.html
+       app.js
+       map-logic.js
+       style.css
+6. ローカルの確認にはVS CodeのLive Serverを使用できます。
+   maplibre-trial/index.html を右クリック→「Open with Live Server」。
+   ※ファイルをダブルクリックして file:/// から開くのは避けてください。
+   ※インターネット接続が必須です。
+
+【GitHub Pagesでも試す方法】
+1. GitHub Desktopに戻り、「Changes」に
+   maplibre-trial/ 以下のファイルだけが追加されているかを確認します。
+2. Summaryに「MapLibreの地図試作を別フォルダに追加」と入力します。
+3. 「Commit to main」→「Push origin」を押します。
+4. GitHub Pagesに反映されたら、次の別URLへアクセスします。
+   https://shiryu0304.github.io/municipality-map/maplibre-trial/
+5. 元アプリのURLは変更しません。
+   https://shiryu0304.github.io/municipality-map/
+6. iPhoneでもSafariから試作URLを直接開いて比較できます。
+   キャッシュが残る場合はSafariで再読み込みしてください。
+
+【訪問記録について：重要】
+・試作版は localStorage の読み取りしかしません。上書き・削除・保存しません。
+・GitHub Pages上で元アプリと同じドメインのURLを開くと、
+  同じブラウザ内の保存済み訪問記録を読み取って地図に表示できます。
+・ローカルのLive Server等、元アプリと別のURLで開くと、
+  通常は訪問記録が表示されません（ブラウザの保存領域が別のため）。
+・その場合は、試作版の「JSONを選ぶ」を使って、元アプリで書き出した
+  JSONバックアップを選択してください。読み取って色分けするだけで、
+  サーバーにアップロードしたり、ブラウザの保存記録を置き換えたりしません。
+・試作版の地図では訪問状態を編集できません。元アプリで編集してください。
+
+【PCでチェックすること】
+・全国の都道府県が表示され、県をクリックして切り替えられるか
+・マウスのホイールで細かく拡大縮小できるか
+・ドラッグしている間に地図が滑らかに動くか
+・都道府県を変えたときに、詳細データ到着後の急な視点移動がないか
+・訪問/通過/未踏の色分けと、市区町村タップ時の名前が正しいか
+・「背景地図を表示」をOFFにすると軽く感じるか
+・「市区町村名を表示」をOFFにすると軽く感じるか
+
+【iPhoneでチェックすること】
+・Safariで試作URLが開けるか
+・1本指でのドラッグが自然か
+・2本指でのピンチイン・アウトがスムーズか
+・全画面表示と「閉じる」が利用できるか
+・県を切り替えても地図が真っ白にならないか
+・「元のアプリに戻る」を押すと従来のアプリに戻れるか
+
+【注意・今回の試作範囲】
+・地図のレンダリングをLeaflet/CanvasからMapLibre/WebGLに変更しました。
+・全国は都道府県境界、詳細は選択した1県分の市区町村境界を取得します。
+・市区町村名は重なりを避けて一部省略されます（元アプリと異なる仕様）。
+・県境と色分けは元の公開データURLを使います。
+・地図背景、地名フォント、境界データはネットワーク経由で読み込みます。
+・通信量、端末性能、WebGL対応状況によって操作感は変わります。
+・機能全体の移植はまだしていません。今回は地図操作の比較が目的です。
+・自動テストおよび構文チェックは実行できますが、実際のブラウザや
+  iPhone Safariでの操作が保証されるわけではありません。
+
+【テストを任意で実行する場合（Node.js導入済みPCのみ）】
+VS Codeの「ターミナル」から maplibre-trial フォルダで：
+  node --test tests/*.test.cjs
+Windows PowerShellでは：
+  node --test tests\map-logic.test.cjs
