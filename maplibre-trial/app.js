@@ -13,6 +13,8 @@
   const STORAGE_KEY = 'municipality-conquest-records-v1';
   const EMPTY = { type: 'FeatureCollection', features: [] };
   const NATION_BOUNDS = [[122, 23], [154, 46]];
+  const FETCH_TIMEOUT_MS = 15000;
+  window.MapTrialStarted = true;
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches || false;
 
   let map;
@@ -27,6 +29,9 @@
   let detailController = null;
   let fullscreen = false;
   const detailCache = new Map();
+  const dataState = { municipalities: 'idle', borders: 'idle' };
+  const dataErrors = { municipalities: '', borders: '' };
+  let mapBootError = '';
   const prefCounts = () => logic.prefectureProgress(municipalities, records);
 
   function status(message, isError = false) {
@@ -43,10 +48,54 @@
     status(`読み込みに失敗しました：${error.message || String(error)}。通信状態を確認して、再読み込みしてください。`, true);
   }
 
-  async function fetchJSON(url, options) {
-    const response = await fetch(url, options);
-    if (!response.ok) throw new Error(`データ取得 HTTP ${response.status}`);
-    return response.json();
+  // 取得先が応答しない場合も15秒後に画面から再試行できるようにする。
+  async function fetchJSON(url, options = {}) {
+    const controller = new AbortController();
+    const onAbort = () => controller.abort();
+    if (options.signal?.aborted) controller.abort();
+    else options.signal?.addEventListener('abort', onAbort, { once: true });
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, FETCH_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      if (timedOut) throw new Error('通信が15秒以内に完了しませんでした');
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onAbort);
+    }
+  }
+
+  function updateLoadingStatus() {
+    if (selectedPrefecture) return;
+    const errors = Object.entries(dataErrors).filter(([, message]) => message);
+    $('retryButton').hidden = errors.length === 0;
+    if (mapBootError) {
+      status(mapBootError, true);
+      return;
+    }
+    if (!mapLoaded) {
+      status('地図の描画を準備中です…（15秒以上続く場合は再読み込みしてください）');
+      return;
+    }
+    if (errors.length) {
+      const subjects = errors.map(([key, message]) =>
+        `${key === 'borders' ? '都道府県境界' : '自治体一覧'}：${message}`);
+      status(`データ取得に失敗しました。${subjects.join('／')}。「データ再取得」を押してください。`, true);
+      return;
+    }
+    if (!rawPrefectureData) {
+      status('地図エンジンは準備できました。都道府県の境界データを取得中です…');
+      return;
+    }
+    if (!municipalities.length) {
+      status('都道府県の地図は表示されています。自治体一覧を取得中です…');
+      return;
+    }
+    status('地図の読み込みが完了しました。都道府県を選ぶと市区町村を表示します。');
   }
 
   function readOnlyExistingRecords() {
@@ -69,25 +118,38 @@
     }
   }
 
+  // 初期表示で外部タイルを待たない。国・都道府県境界は別に読み込む。
   function makeStyle() {
     return {
       version: 8,
       glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-      sources: {
-        ocean: {
-          type: 'raster',
-          tiles: ['https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}'],
-          tileSize: 256,
-          minzoom: 0,
-          maxzoom: 9,
-          attribution: 'Esri, Garmin, GEBCO, NOAA NGDC ほか'
-        }
-      },
+      sources: {},
       layers: [
-        { id: 'base', type: 'background', paint: { 'background-color': '#dbe6ec' } },
-        { id: 'ocean-raster', type: 'raster', source: 'ocean', paint: { 'raster-opacity': 0.96 } }
+        { id: 'base', type: 'background', paint: { 'background-color': '#dbe6ec' } }
       ]
     };
+  }
+
+  // 重い背景タイルは希望した時だけ後から追加し、県境より下に敷く。
+  function updateBackground() {
+    if (!mapLoaded) return;
+    if (!$('oceanToggle').checked) {
+      showLayer('ocean-raster', false);
+      return;
+    }
+    if (!map.getSource('ocean')) {
+      map.addSource('ocean', {
+        type: 'raster',
+        tiles: ['https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}'],
+        tileSize: 256, minzoom: 0, maxzoom: 9,
+        attribution: 'Esri, Garmin, GEBCO, NOAA NGDC ほか'
+      });
+      map.addLayer({
+        id: 'ocean-raster', type: 'raster', source: 'ocean',
+        paint: { 'raster-opacity': 0.96 }
+      }, 'prefecture-fill');
+    }
+    showLayer('ocean-raster', true);
   }
 
   function showLayer(layerId, show) {
@@ -198,8 +260,11 @@
   }
 
   function refreshProgressColors() {
-    if (!mapLoaded || !rawPrefectureData || !municipalities.length) return;
-    prefectureData = logic.enrichPrefectureFeatures(rawPrefectureData, prefCounts());
+    if (!mapLoaded || !rawPrefectureData) return;
+    // 自治体一覧が遅い場合でも、都道府県の輪郭だけは先に表示。
+    prefectureData = municipalities.length
+      ? logic.enrichPrefectureFeatures(rawPrefectureData, prefCounts())
+      : logic.preparePrefectureOutlines(rawPrefectureData);
     map.getSource('prefectures').setData(prefectureData);
     if (selectedPrefecture && detailCache.has(selectedPrefecture)) displayCachedDetail(selectedPrefecture);
   }
@@ -288,23 +353,61 @@
     requestAnimationFrame(() => requestAnimationFrame(() => map?.resize()));
   }
 
-  async function initializeData() {
+  async function loadMunicipalities() {
+    if (dataState.municipalities === 'loading') return;
+    dataState.municipalities = 'loading';
+    dataErrors.municipalities = '';
+    updateLoadingStatus();
     try {
-      const [list, border] = await Promise.all([fetchJSON(DATA_URL), fetchJSON(PREFECTURE_URL)]);
-      municipalities = logic.normalizeMunicipalityData(list);
-      if (municipalities.length < 1000) throw new Error('全国自治体一覧が不足しています');
+      const list = await fetchJSON(DATA_URL);
+      const parsed = logic.normalizeMunicipalityData(list);
+      if (parsed.length < 1000) throw new Error('全国自治体一覧の件数が不足しています');
+      municipalities = parsed;
       municipalityIndex = logic.createMunicipalityIndex(municipalities);
-      rawPrefectureData = border;
       populatePrefectures();
       records = readOnlyExistingRecords();
       $('dataCount').textContent = `${municipalities.length.toLocaleString('ja-JP')}自治体`;
-      // 地図のライブラリ初期化よりデータの取得が先に完了する場合にも対応。
-      if (mapLoaded) {
-        refreshProgressColors();
-        status('都道府県をタップすると詳細な市区町村境界を読み込みます。');
-        $('mapMode').textContent = '全国 · 47都道府県';
-      }
-    } catch (error) { accessibleError(error); }
+      dataState.municipalities = 'ready';
+      refreshProgressColors();
+    } catch (error) {
+      dataState.municipalities = 'error';
+      dataErrors.municipalities = error.message || String(error);
+      console.warn('自治体一覧の取得失敗', error);
+      $('dataCount').textContent = '自治体一覧の取得に失敗';
+    }
+    updateLoadingStatus();
+  }
+
+  async function loadBorders() {
+    if (dataState.borders === 'loading') return;
+    dataState.borders = 'loading';
+    dataErrors.borders = '';
+    updateLoadingStatus();
+    try {
+      const geo = await fetchJSON(PREFECTURE_URL);
+      // 自治体一覧が届く前でも輪郭を描けるよう独立して検証。
+      logic.preparePrefectureOutlines(geo);
+      rawPrefectureData = geo;
+      dataState.borders = 'ready';
+      refreshProgressColors();
+      $('mapMode').textContent = '全国 · 都道府県境界';
+    } catch (error) {
+      dataState.borders = 'error';
+      dataErrors.borders = error.message || String(error);
+      console.warn('都道府県境界の取得失敗', error);
+    }
+    updateLoadingStatus();
+  }
+
+  function initializeData() {
+    // 両方が完了するまで待たない。境界だけ取得できれば先に地図を表示。
+    void loadMunicipalities();
+    void loadBorders();
+  }
+
+  function retryData() {
+    if (dataState.municipalities === 'error') void loadMunicipalities();
+    if (dataState.borders === 'error') void loadBorders();
   }
 
   async function handleRecordFile(event) {
@@ -334,7 +437,8 @@
     $('labelsToggle').addEventListener('change', () => {
       showLayer('municipality-labels', Boolean(selectedPrefecture && detailCache.has(selectedPrefecture) && $('labelsToggle').checked));
     });
-    $('oceanToggle').addEventListener('change', () => showLayer('ocean-raster', $('oceanToggle').checked));
+    $('oceanToggle').addEventListener('change', updateBackground);
+    $('retryButton').addEventListener('click', retryData);
     $('recordFile').addEventListener('change', handleRecordFile);
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape' && fullscreen) setFullscreen(false);
@@ -343,11 +447,13 @@
 
   function initializeMap() {
     if (!window.maplibregl) {
-      status('MapLibreを読み込めませんでした。ネット接続と広告ブロックなどの設定を確認してください。', true);
+      mapBootError = 'MapLibreを読み込めませんでした。ネット接続と広告ブロックなどの設定を確認してください。';
+      status(mapBootError, true);
       return;
     }
     if (!maplibregl.supported()) {
-      status('このブラウザでは地図描画用のWebGLを利用できません。別のブラウザまたは端末でお試しください。', true);
+      mapBootError = 'このブラウザでは地図描画用のWebGLを利用できません。別のブラウザまたは端末でお試しください。';
+      status(mapBootError, true);
       return;
     }
     try {
@@ -365,18 +471,31 @@
         makeMapLayers();
         setupInteractions();
         mapLoaded = true;
-        fit(NATION_BOUNDS,5.4);
-        if (municipalities.length && rawPrefectureData) {
-          refreshProgressColors();
-          $('mapMode').textContent = '全国 · 47都道府県';
-          status('都道府県をタップすると詳細な市区町村境界を読み込みます。');
+        fit(NATION_BOUNDS, 5.4);
+        refreshProgressColors();
+        updateBackground();
+        updateLoadingStatus();
+      });
+      map.on('error', event => {
+        console.warn('地図描画・タイル取得:', event.error || event);
+        if (!mapLoaded) {
+          mapBootError = '地図を準備できませんでした。ブラウザでWebGLが使用できるかご確認ください。';
+          status(mapBootError, true);
         }
       });
-      map.on('error', event => console.warn('地図描画・タイル取得:', event.error || event));
-    } catch (error) { accessibleError(error); }
+      setTimeout(() => {
+        if (!mapLoaded) {
+          mapBootError = '地図エンジンの起動に時間がかかっています。ブラウザを再読み込みしてください。';
+          status(mapBootError, true);
+        }
+      }, 15000);
+    } catch (error) {
+      mapBootError = `地図を開始できませんでした：${error.message || String(error)}`;
+      accessibleError(error);
+    }
   }
 
   setupButtons();
   initializeMap();
-  void initializeData();
+  initializeData();
 })();

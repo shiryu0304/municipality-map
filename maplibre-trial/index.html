@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#133e35">
   <title>MapLibre 地図試作 | 市区町村制覇</title>
   <link href="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.css" rel="stylesheet">
-  <link href="style.css?v=1" rel="stylesheet">
+  <link href="style.css?v=2" rel="stylesheet">
   <script defer src="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.js"></script>
-  <script defer src="map-logic.js?v=1"></script>
-  <script defer src="app.js?v=1"></script>
+  <script defer src="map-logic.js?v=2"></script>
+  <script defer src="app.js?v=2"></script>
 </head>
 <body>
   <header class="topbar">
@@ -40,9 +40,9 @@
         <button class="button main-button" id="fullscreenButton" type="button" aria-pressed="false">全画面</button>
       </div>
       <div class="options">
-        <label class="toggle"><input type="checkbox" id="oceanToggle" checked><span>背景地図を表示</span></label>
+        <label class="toggle"><input type="checkbox" id="oceanToggle"><span>背景地図を表示</span></label>
         <label class="toggle"><input type="checkbox" id="labelsToggle" checked><span>市区町村名を表示</span></label>
-        <span class="small-note">背景をOFFにすると図形の描画だけを比較できます</span>
+        <span class="small-note">背景は初期表示で読み込みません。必要なときにONにできます</span>
       </div>
       <div class="legend" id="nationalLegend" aria-label="都道府県の制覇率">
         <span><i style="--swatch:#eef2ef"></i>0%</span><span><i style="--swatch:#c4e7d2"></i>1～24%</span>
@@ -54,7 +54,7 @@
         <span><i style="--swatch:#eef2ef"></i>未踏</span>
       </div>
       <div id="map" role="application" aria-label="日本の都道府県・市区町村の操作可能な地図"></div>
-      <div class="map-foot"><span id="statusText" role="status">地図と自治体データを読み込み中です…</span></div>
+      <div class="map-foot"><span id="statusText" role="status">地図と自治体データを読み込み中です…</span><button id="retryButton" class="button muted-button" type="button" hidden>データ再取得</button></div>
     </section>
 
     <section class="under-map">
@@ -69,5 +69,17 @@
     </section>
     <footer>試作版：全国自治体一覧 Code for Fukui／県境 SmartNews SMRI／市区町村境界 ricewin simplify-japan-geojson／背景 Esriほか。外部地図・データの取得には通信が必要です。<br>MapLibre GL JSの試作ページです。元アプリのファイルと記録には変更を加えません。</footer>
   </main>
+  <!-- CDNやapp.jsの読み込みが止まっても、原因を画面に出す保険。 -->
+  <script>
+    setTimeout(function () {
+      if (!window.MapTrialStarted) {
+        const el = document.getElementById('statusText');
+        if (el) {
+          el.textContent = '試作版のプログラムを取得できませんでした。ネット接続とJavaScriptの読み込みをご確認ください。';
+          el.classList.add('error');
+        }
+      }
+    }, 12000);
+  </script>
 </body>
 </html>

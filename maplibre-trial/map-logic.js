@@ -111,6 +111,18 @@
     return '#19865b';
   }
 
+  function preparePrefectureOutlines(data) {
+    if (!data || data.type !== 'FeatureCollection' || !Array.isArray(data.features)) {
+      throw new Error('都道府県境界データの形式が正しくありません');
+    }
+    const features = data.features.filter(f => f?.geometry && String(f.properties?.N03_001 || '').trim())
+      .map(f => ({ ...f, properties: {
+        ...f.properties, pref: String(f.properties.N03_001).trim(), fill: '#eef2ef'
+      }}));
+    if (!features.length) throw new Error('都道府県の境界が見つかりません');
+    return { type: 'FeatureCollection', features };
+  }
+
   function enrichPrefectureFeatures(data, progress) {
     if (!data || data.type !== 'FeatureCollection' || !Array.isArray(data.features)) {
       throw new Error('都道府県境界データの形式が正しくありません');
@@ -234,7 +246,7 @@
   const exported = {
     normalizeStatus, normalizeMapCode, normalizeMunicipalityData, createMunicipalityIndex,
     findMunicipality, collectRegions, parseRecordBackup, prefectureProgress, progressBand,
-    enrichPrefectureFeatures, enrichMunicipalityFeatures, getGeoJSONBounds, findLabelCenter, makeLabels
+    preparePrefectureOutlines, enrichPrefectureFeatures, enrichMunicipalityFeatures, getGeoJSONBounds, findLabelCenter, makeLabels
   };
   root.MapTrialLogic = exported;
   if (typeof module !== 'undefined' && module.exports) module.exports = exported;

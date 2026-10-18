@@ -96,3 +96,15 @@ test('地図の境界位置と地名の代表点を算出できる', () => {
   assert.equal(labels.features.length,1);
   assert.equal(labels.features[0].properties.name,'千代田区');
 });
+
+test('自治体一覧が届く前でも都道府県境界に仮の色を付けられる', () => {
+  const geo = {type:'FeatureCollection',features:[feature('13101','東京都','千代田区')]};
+  const outlines = L.preparePrefectureOutlines(geo);
+  assert.equal(outlines.features.length,1);
+  assert.equal(outlines.features[0].properties.pref,'東京都');
+  assert.equal(outlines.features[0].properties.fill,'#eef2ef');
+});
+test('都道府県境界が不正な場合は画面用データに変換しない', () => {
+  assert.throws(() => L.preparePrefectureOutlines({}));
+  assert.throws(() => L.preparePrefectureOutlines({type:'FeatureCollection',features:[]}));
+});
