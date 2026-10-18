@@ -35,10 +35,12 @@ function setup({ failDetail = false, holdDetail = false } = {}) {
     {lgcode:'271004',pref:'大阪府',city:'大阪市'},
     ...Array.from({length:999},(_,i)=>({lgcode:String(800000+i),pref:'北海道',city:`試験${i}市`}))
   ];
-  const calls = { fetch:[], layers:[], removed:[], writes:[], callbacks:{}, currentZoom:5, currentCenter:{lat:35.65,lng:139.75} };
+  const calls = { fetch:[], layers:[], removed:[], writes:[], callbacks:{}, fitBounds:[], mapOptions:null,
+    currentZoom:5, currentCenter:{lat:35.65,lng:139.75} };
   let releaseDetail;
   const map = {
-    setView(){return this;}, setMaxBounds(){return this;}, fitBounds(){return this;},
+    setView(){return this;}, setMaxBounds(){return this;},
+    fitBounds(bounds, options){calls.fitBounds.push({bounds,options});return this;},
     panBy(){return this;},
     getZoom(){return calls.currentZoom;}, getCenter(){return calls.currentCenter;},
     getBounds(){return {intersects: candidate => candidate.name === '東京都', pad(){return this;}};},
@@ -46,7 +48,7 @@ function setup({ failDetail = false, holdDetail = false } = {}) {
     removeLayer(layer){calls.removed.push(layer);}
   };
   const Leaflet = {
-    map(){return map;}, tileLayer(){return {addTo(){}};},
+    map(_id,opts){calls.mapOptions=opts;return map;}, tileLayer(){return {addTo(){}};},
     latLngBounds(a){return {name: a[0][1] > 138 ? '東京都' : '大阪府'};},
     geoJSON(data, opts){
       const layer = {data,opts,setStyle(cb){this.style=cb;},addTo(){calls.layers.push(this);return this;},
@@ -138,5 +140,32 @@ test('rapid prefecture-to-nationwide-to-same-prefecture keeps current view',asyn
   a.releaseDetail();await settle();
   assert.equal(vm.runInContext('detailedMapLayers.has("東京都")',a.ctx),true);
   assert.match(a.elements.get('mapBadge').textContent,/東京都/);
+  assert.equal(a.calls.writes.length,0);
+});
+
+
+test('zoom changes in smaller steps and labels update without scheduling a re-download', async()=>{
+  const a=setup(); await settle();
+  assert.equal(a.calls.mapOptions.zoomSnap,0.25);
+  assert.equal(a.calls.mapOptions.zoomDelta,0.5);
+  assert.equal(a.calls.mapOptions.wheelPxPerZoomLevel,120);
+  assert.equal(a.calls.mapOptions.inertia,true);
+  assert.equal(typeof a.calls.callbacks.zoomend,'function');
+  const before=a.calls.fetch.length;
+  a.calls.currentZoom=7.5;
+  a.calls.callbacks.zoomend();
+  assert.equal(a.calls.fetch.length,before,'zoom end does not trigger an unnecessary download');
+  assert.equal(a.calls.writes.length,0,'zoom never saves or alters visit records');
+});
+
+test('prefecture preview is fitted once; detail arrival does not unexpectedly jump the view', async()=>{
+  const a=setup(); await settle();
+  const before=a.calls.fitBounds.length;
+  a.elements.get('mapPrefectureFilter').value='東京都';
+  a.elements.get('mapPrefectureFilter').events.change();
+  const fittedAfterSelection=a.calls.fitBounds.length;
+  assert.equal(fittedAfterSelection,before+1,'preview sets view to the selected prefecture');
+  await settle();
+  assert.equal(a.calls.fitBounds.length,fittedAfterSelection,'detail data does not fit bounds again');
   assert.equal(a.calls.writes.length,0);
 });

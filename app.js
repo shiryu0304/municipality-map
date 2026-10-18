@@ -523,7 +523,10 @@ let municipalityNameLayer; // 地図の上に表示する市区町村名（記�
 let renderedLabelPrefecture = "";
 let renderedLabelSource = null;
 const municipalityLabelMarkers = new Map(); // 県内の自治体名を1自治体1マーカーで保持
-let detailedMapUpdateTimer;
+// 県を選んだときのズーム位置調整は1度だけにする（データ読み込み後の急なジャンプを防止）。
+let fitDetailBoundsOnLoad = false;
+// ズーム終了時、県境の太さが変化した場合だけ描画し直す。
+let lastPrefectureBorderWeight = null;
 let mapGeoJSON = null;
 // 全国用の図形は一度だけ都道府県ごとに整理し、県を選ぶたびに全国を走査しない。
 const mapFeaturesByPrefecture = new Map();
@@ -829,6 +832,7 @@ function renderPrefectureBorders() {
   prefectureBorderLayer = L.geoJSON({type: "FeatureCollection", features}, {
     style: getPrefectureBorderStyle, interactive: false, smoothFactor: 0.2
   }).addTo(map);
+  lastPrefectureBorderWeight = getPrefectureBorderStyle().weight;
   raisePrefectureBorders();
 }
 
@@ -1026,7 +1030,12 @@ async function refreshDetailedBoundaries() {
       prefecturePreviewLayer = null;
     }
     const bounds = layer.getBounds?.();
-    if (bounds?.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8 });
+    // 県境のプレビューで一度合わせていれば、読み込み後は視点を動かさない。
+    // 初回表示時にプレビューがない場合だけ、詳細境界に合わせる。
+    if (fitDetailBoundsOnLoad && bounds?.isValid()) {
+      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8 });
+    }
+    fitDetailBoundsOnLoad = false;
     failedDetailedPrefectures.delete(prefecture);
     updateMapLabels();
     raisePrefectureBorders();
@@ -1047,20 +1056,24 @@ async function refreshDetailedBoundaries() {
   }
 }
 
-function scheduleDetailedBoundaries() {
-  clearTimeout(detailedMapUpdateTimer);
-  detailedMapUpdateTimer = setTimeout(() => {
-    updateMapLabels();
-    if (prefectureBorderLayer && typeof prefectureBorderLayer.setStyle === "function") {
+function handleMapZoomEnd() {
+  // 地名は作り直さず、表示倍率だけすぐに追従させる。
+  // 以前の250ms待機による、操作終了後の文字サイズの跳ね上がりを減らす。
+  updateMapLabels();
+  if (prefectureBorderLayer && typeof prefectureBorderLayer.setStyle === "function") {
+    const weight = getPrefectureBorderStyle().weight;
+    if (weight !== lastPrefectureBorderWeight) {
       prefectureBorderLayer.setStyle(getPrefectureBorderStyle);
+      lastPrefectureBorderWeight = weight;
     }
-    void refreshDetailedBoundaries();
-  }, 250);
+  }
+  // 同じ県の詳細データはズームごとに読み込み・再生成しない。
 }
 
 function renderMapLayer(prefecture = "") {
   if (!map) return;
   mapViewVersion++;
+  fitDetailBoundsOnLoad = Boolean(prefecture);
   mapPrefectureFilter.value = prefecture;
   // 県別画面に移る前に全国の図形を取り除き、描画数を減らす。
   if (prefectureOverviewLayer) {
@@ -1078,6 +1091,7 @@ function renderMapLayer(prefecture = "") {
   if (prefectureBorderLayer) {
     map.removeLayer(prefectureBorderLayer);
     prefectureBorderLayer = null;
+    lastPrefectureBorderWeight = null;
   }
   for (const [name, entry] of detailedMapLayers) {
     if (name !== prefecture) {
@@ -1110,7 +1124,10 @@ function renderMapLayer(prefecture = "") {
       style: getOverviewMapStyle, interactive: false, smoothFactor: 0.3
     }).addTo(map);
     const bounds = prefecturePreviewLayer.getBounds?.();
-    if (bounds?.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8 });
+    if (bounds?.isValid()) {
+      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8 });
+      fitDetailBoundsOnLoad = false;
+    }
   }
   $("mapBadge").textContent = `${prefecture} · 読み込み中`;
   renderPrefectureBorders();
@@ -1160,6 +1177,15 @@ function initializeMap() {
   const bufferedRenderer = typeof L.canvas === "function" ? L.canvas({ padding: 0.25 }) : undefined;
   map = L.map("japanMap", {
     scrollWheelZoom: true,
+    // 1段ずつ跳ねる拡大縮小を、1/4段刻みで細かくする。
+    // マウスホイールも1回あたりの変化を抑えて操作しやすくする。
+    zoomSnap: 0.25,
+    zoomDelta: 0.5,
+    wheelPxPerZoomLevel: 120,
+    // ドラッグ後の移動速度を抑え、急激な画面移動を緩和する。
+    inertia: true,
+    inertiaDeceleration: 2600,
+    inertiaMaxSpeed: 1200,
     preferCanvas: true,
     ...(bufferedRenderer ? { renderer: bufferedRenderer } : {}),
     // 地名マーカーもピンチ拡大縮小のアニメーションに追従させる。
@@ -1191,7 +1217,7 @@ function initializeMap() {
   if (typeof map.on === "function") {
     // 移動中は名前マーカーや地域のDOMを再作成しない。
     // 完了後の小さな更新だけに留める。
-    map.on("zoomend", scheduleDetailedBoundaries);
+    map.on("zoomend", handleMapZoomEnd);
   }
   const fullscreenButton = $("toggleMapFullscreen");
   if (fullscreenButton) fullscreenButton.addEventListener("click", () => setMapFullscreen(!mapFullscreen));
