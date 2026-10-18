@@ -43,7 +43,7 @@ function makeEnv() {
     matchMedia:()=>({matches:false}), localStorage:{getItem:()=>null},
   };
   const sandbox={window, document:{getElementById:elem,addEventListener(){},querySelector(){return null;}},
-    maplibregl:{Map:FakeMap,supported:()=>true,NavigationControl:class{}},
+    maplibregl:{Map:FakeMap,NavigationControl:class{}},
     Option:class{constructor(text,value){this.text=text;this.value=value;}},
     fetch, setTimeout:()=>1, clearTimeout() {}, AbortController,
     console,};
@@ -53,7 +53,8 @@ function makeEnv() {
 }
 
 test('初期地図は外部タイルを待たず読み込みイベントに進む', async () => {
-  const {FakeMap,elem,added} = makeEnv();
+  const {FakeMap,elem,added,window} = makeEnv();
+  assert.equal(window.maplibregl.supported, undefined, 'MapLibre v5ではsupported()は存在しない');
   assert.deepEqual(Object.keys(FakeMap.instance.opts.style.sources), []);
   FakeMap.instance.events.get('load')();
   assert.ok(added.some(([kind,name])=>kind==='layer' && name==='prefecture-fill'));

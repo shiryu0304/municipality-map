@@ -10,16 +10,16 @@ const bootstrap = fs.readFileSync(path.join(root,'bootstrap.js'),'utf8');
 
 function flush(){return new Promise(resolve=>setImmediate(resolve));}
 
-test('v3: HTMLにスクリプト依存のない独立した診断欄とバージョンがある',()=>{
- assert.match(html,/試作版 v3・診断付き/);
+test('v4: HTMLにスクリプト依存のない独立した診断欄とバージョンがある',()=>{
+ assert.match(html,/試作版 v4・診断付き/);
  assert.match(html,/id="diagnosticText"/);
  assert.match(html,/MapTrialDiagnostics/);
  assert.match(html,/!mapReady && !fault/);
- assert.match(html,/bootstrap\.js\?v=3/);
+ assert.match(html,/bootstrap\.js\?v=4/);
  assert.doesNotMatch(html,/<script defer src="app\.js/);
 });
 
-test('v3: 地図ライブラリの第一配信元が不調なら第二を試してからアプリを起動する',async()=>{
+test('v4: 地図ライブラリの第一配信元が不調なら第二を試してからアプリを起動する',async()=>{
  const scriptUrls=[];
  const statuses=[];
  const fakeWindow={MapTrialLogic:{},maplibregl:undefined,MapTrialStarted:false,
@@ -41,11 +41,11 @@ test('v3: 地図ライブラリの第一配信元が不調なら第二を試し�
  assert.equal(scriptUrls.length,3);
  assert.match(scriptUrls[0],/jsdelivr/);
  assert.match(scriptUrls[1],/unpkg/);
- assert.equal(scriptUrls[2],'app.js?v=3');
+ assert.equal(scriptUrls[2],'app.js?v=4');
  assert.ok(!statuses.some(x=>x.startsWith('ERR:')));
 });
 
-test('v3: 両方の配信元が失敗すれば画面の診断へ通知する',async()=>{
+test('v4: 両方の配信元が失敗すれば画面の診断へ通知する',async()=>{
  const reports=[];
  const fakeWindow={MapTrialLogic:{},MapTrialDiagnostics:{mark(){},fail:x=>reports.push(x)}};
  const ctx={window:fakeWindow,document:{head:{appendChild(el){queueMicrotask(()=>el.onerror());}},createElement(){return {remove(){}};}},

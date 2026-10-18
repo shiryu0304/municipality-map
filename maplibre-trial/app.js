@@ -459,12 +459,8 @@
       status(mapBootError, true);
       return;
     }
-    if (!maplibregl.supported()) {
-      mapBootError = 'このブラウザでは地図描画用のWebGLを利用できません。別のブラウザまたは端末でお試しください。';
-      window.MapTrialDiagnostics?.fail(mapBootError);
-      status(mapBootError, true);
-      return;
-    }
+    // MapLibre GL JS 5.x は maplibregl.supported() を公開していない。
+    // 公式の方式に従い、地図の作成時に起きるWebGLエラーを下のcatchで扱う。
     try {
       window.MapTrialDiagnostics?.mark('MapLibreライブラリを取得。WebGL地図の作成中です。');
       map = new maplibregl.Map({
@@ -502,7 +498,11 @@
         }
       }, 15000);
     } catch (error) {
-      mapBootError = `地図を開始できませんでした：${error.message || String(error)}`;
+      const detail = error?.message || String(error);
+      const gpuError = error?.name === 'GPUInitializationError';
+      mapBootError = gpuError
+        ? `このブラウザで地図の描画を開始できませんでした（WebGL）：${detail}`
+        : `地図を開始できませんでした：${detail}`;
       window.MapTrialDiagnostics?.fail(mapBootError);
       accessibleError(error);
     }

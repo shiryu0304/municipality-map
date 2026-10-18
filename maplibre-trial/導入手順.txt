@@ -1,54 +1,48 @@
-市区町村制覇アプリ MapLibre試作版 v3（診断付き）
+市区町村制覇アプリ MapLibre試作版 v4（地図起動エラー修正版）
 2026年10月18日
 
-【不具合の状況】
-地図が水色のままでエラー文も出ないという報告を受け、原因を特定できるようにしました。
-公開中のファイルが旧版のままか、MapLibreの配信元・WebGL・コード・地図データの
-どこで停止しているのかは、現時点では特定できていません。
+【確認できた原因】
+ユーザーから送られた診断 v3 の画面：
+  JavaScript エラー: TypeError: maplibregl.supported is not a function. (462行)
 
-【修正のねらい】
-・地図が動かなくてもHTML単体で「診断 v3」と停止箇所を表示します。
-・地図描画用ライブラリは、配信元Aが失敗したら配信元Bを試します。
-・地図プログラムのJavaScriptエラー、データ通信エラーを画面に出します。
-・トップの表示に「試作版 v3・診断付き」と明示し、旧版かどうか区別できます。
+MapLibreライブラリは読み込まれていますが、app.jsが利用できない関数
+maplibregl.supported()を呼んで、その時点で止まっていました。
 
-【変更したファイル】
-maplibre-trial/index.html: 初期診断欄と新しい読み込み方式
-maplibre-trial/style.css: 診断欄の色分け
-maplibre-trial/app.js: 地図起動とデータ取得の報告
-maplibre-trial/bootstrap.js: 地図ライブラリの読み込みと自動切り替え（新規）
-maplibre-trial/tests/diagnostic.test.cjs: 自動テスト（新規）
-その他のファイルは前回の修正版と同じです。
-「municipality-map」直下の元アプリ本体は変更しません。
+【今回の変更】
+・maplibre-trial/app.js：存在しない関数の呼び出しを削除。
+  WebGLの起動失敗は地図生成時のエラーとして表示する方式に変更。
+・maplibre-trial/bootstrap.js：app.jsのバージョンを4に変更し、古いキャッシュを避ける。
+・maplibre-trial/index.html：表示を「診断 v4」に変更、読み込み用の番号を4へ更新。
+・maplibre-trial/tests/：このエラーが再発しないようテスト追加・更新。
+・maplibre-trial/map-logic.js、style.css：変更なし。
+・元のアプリ index.html、app.js、style.css：変更なし。
 
 【導入前のバックアップ】
-① 元のアプリで訪問記録をJSONに書き出します（PC・iPhoneそれぞれ必要に応じて）。
-② GitHub Desktopで未コミットの変更があればコミットします。
-③ 念のため現在のmunicipality-mapフォルダをコピーして保管します。
+1. 元のアプリで訪問記録のJSONを保存します。PCとiPhoneで別々に使っている
+   場合は両方で書き出します。
+2. GitHub Desktopを開き、現在の作業内容を確認して必要ならコミットします。
+3. 可能なら municipality-map フォルダも別の場所へコピーしておきます。
 
-【導入方法】
-① ZIPを右クリックして「すべて展開」。
-② 展開したmaplibre-trialフォルダを、既存のmunicipality-mapフォルダにコピー。
-③ 同じ名前のファイルは「コピー先のファイルを置き換える」。
-④ VS Codeで municipality-map/maplibre-trial/ 内の bootstrap.js が追加されていることを確認。
-⑤ GitHub DesktopのChangesで変更がmaplibre-trial内だけであることを確認。
-⑥ Summaryに「MapLibre試作版 v3 診断機能」と入力してCommit to main。
-⑦ Push originを押して公開の反映を待ちます。
-⑧ Chromeの新しいシークレットウィンドウで以下のURLを開いてください。
-https://shiryu0304.github.io/municipality-map/maplibre-trial/?check=v3-20261018
+【導入手順】
+1. ZIPを右クリックして「すべて展開」を選びます。
+2. 展開した「maplibre-trial」フォルダを、既存の「municipality-map」
+   フォルダの中へコピーします。既存ファイルの置き換えを選択します。
+3. GitHub Desktopの Changes で、変更されたファイルが
+   「maplibre-trial/」の中だけであることを確認してください。
+4. 左下のSummaryに「MapLibre v4 地図起動エラー修正」と入力し、
+   「Commit to main」→「Push origin」をクリックします。
+5. 公開が反映されたら、下記のURLから新しいページを開いてください。
+   https://shiryu0304.github.io/municipality-map/maplibre-trial/?check=v4-20261018
+6. 地図の下が「診断 v4」と表示されることを確かめてください。
 
-【確認ポイント】
-・上部に「試作版 v3・診断付き」と表示されますか？
-・地図の下に「診断 v3」という文字が表示されますか？
-・15～20秒後、診断 v3 の右側にどんな文章が出ていますか？
-・表示に成功した場合は PCのホイールとドラッグ、iPhoneの二本指拡大縮小を確認。
+【PCとiPhoneでの確認】
+・最初に日本の都道府県の輪郭が表示されるか。
+・「診断 v4」にエラーが表示されていないか。
+・PC：マウスドラッグとホイールで滑らかに移動・拡大縮小できるか。
+・iPhone：1本指で移動、2本指で拡大縮小できるか。
+・県を選んだとき、市区町村の地図と訪問済みの色が表示されるか。
+・元のアプリが今までどおり動き、訪問記録が残っているか。
 
-【結果の伝え方】
-地図が表示されない場合は、診断v3欄が見えるスクリーンショット、またはその文章を
-そのままChatGPTに送ってください。
-「診断v3」が見えない場合、ZIPが正しい場所に置かれていない、Pushされていない、
-GitHub Pagesの反映待ち、またはキャッシュの可能性を優先して確認します。
-
-【注意】
-閲覧専用です。元アプリの訪問記録は保存・編集・削除しません。
-実機およびGitHub Pages上で地図の表示を確認済みという意味ではありません。
+【まだ表示されない場合】
+「診断 v4」の枠内の文章を、そのままスクリーンショットで送ってください。
+プログラムの自動テストは行っていますが、実機・GitHub Pagesの動作は未確認です。
