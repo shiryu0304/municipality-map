@@ -6,6 +6,9 @@
 (() => {
   'use strict';
   const logic = window.MapTrialLogic;
+  if (!logic || typeof logic.normalizeMunicipalityData !== 'function') {
+    throw new Error('地図の計算プログラム map-logic.js を読み込めませんでした');
+  }
   const $ = id => document.getElementById(id);
   const DATA_URL = 'https://code4fukui.github.io/localgovjp/localgovjp.json';
   const PREFECTURE_URL = 'https://raw.githubusercontent.com/smartnews-smri/japan-topography/main/data/municipality/geojson/s0001/prefectures.json';
@@ -363,6 +366,7 @@
       const parsed = logic.normalizeMunicipalityData(list);
       if (parsed.length < 1000) throw new Error('全国自治体一覧の件数が不足しています');
       municipalities = parsed;
+      window.MapTrialDiagnostics?.mark('自治体一覧のデータ取得に成功しました。');
       municipalityIndex = logic.createMunicipalityIndex(municipalities);
       populatePrefectures();
       records = readOnlyExistingRecords();
@@ -373,6 +377,7 @@
       dataState.municipalities = 'error';
       dataErrors.municipalities = error.message || String(error);
       console.warn('自治体一覧の取得失敗', error);
+      window.MapTrialDiagnostics?.fail('自治体一覧の通信に失敗：' + dataErrors.municipalities);
       $('dataCount').textContent = '自治体一覧の取得に失敗';
     }
     updateLoadingStatus();
@@ -388,6 +393,7 @@
       // 自治体一覧が届く前でも輪郭を描けるよう独立して検証。
       logic.preparePrefectureOutlines(geo);
       rawPrefectureData = geo;
+      window.MapTrialDiagnostics?.mark('都道府県境界のデータ取得に成功しました。');
       dataState.borders = 'ready';
       refreshProgressColors();
       $('mapMode').textContent = '全国 · 都道府県境界';
@@ -395,6 +401,7 @@
       dataState.borders = 'error';
       dataErrors.borders = error.message || String(error);
       console.warn('都道府県境界の取得失敗', error);
+      window.MapTrialDiagnostics?.fail('都道府県境界の通信に失敗：' + dataErrors.borders);
     }
     updateLoadingStatus();
   }
@@ -448,15 +455,18 @@
   function initializeMap() {
     if (!window.maplibregl) {
       mapBootError = 'MapLibreを読み込めませんでした。ネット接続と広告ブロックなどの設定を確認してください。';
+      window.MapTrialDiagnostics?.fail(mapBootError);
       status(mapBootError, true);
       return;
     }
     if (!maplibregl.supported()) {
       mapBootError = 'このブラウザでは地図描画用のWebGLを利用できません。別のブラウザまたは端末でお試しください。';
+      window.MapTrialDiagnostics?.fail(mapBootError);
       status(mapBootError, true);
       return;
     }
     try {
+      window.MapTrialDiagnostics?.mark('MapLibreライブラリを取得。WebGL地図の作成中です。');
       map = new maplibregl.Map({
         container: 'map', style: makeStyle(), center: [138, 36], zoom: 4.5,
         minZoom: 3, maxZoom: 12,
@@ -468,6 +478,7 @@
       map.touchZoomRotate.disableRotation();
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
       map.on('load', () => {
+        window.MapTrialDiagnostics?.ready();
         makeMapLayers();
         setupInteractions();
         mapLoaded = true;
@@ -486,11 +497,13 @@
       setTimeout(() => {
         if (!mapLoaded) {
           mapBootError = '地図エンジンの起動に時間がかかっています。ブラウザを再読み込みしてください。';
+          window.MapTrialDiagnostics?.fail(mapBootError);
           status(mapBootError, true);
         }
       }, 15000);
     } catch (error) {
       mapBootError = `地図を開始できませんでした：${error.message || String(error)}`;
+      window.MapTrialDiagnostics?.fail(mapBootError);
       accessibleError(error);
     }
   }

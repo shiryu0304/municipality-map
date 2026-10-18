@@ -4,12 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#133e35">
-  <title>MapLibre 地図試作 | 市区町村制覇</title>
+  <title>MapLibre 地図試作 v3 | 市区町村制覇</title>
   <link href="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.css" rel="stylesheet">
-  <link href="style.css?v=2" rel="stylesheet">
-  <script defer src="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.js"></script>
-  <script defer src="map-logic.js?v=2"></script>
-  <script defer src="app.js?v=2"></script>
+  <link href="style.css?v=3" rel="stylesheet">
+  <script defer src="map-logic.js?v=3"></script>
+  <script defer src="bootstrap.js?v=3"></script>
 </head>
 <body>
   <header class="topbar">
@@ -30,7 +29,7 @@
     <section class="map-panel" id="mapPanel" aria-label="MapLibreの地図試作">
       <div class="map-header">
         <div><div class="eyebrow">INTERACTIVE JAPAN MAP</div><h2 id="modeTitle">全国の都道府県</h2><span id="dataCount" class="dataset-count">全国自治体データを読み込み中</span></div>
-        <span class="map-badge" id="mapMode">地図を準備中</span>
+        <span class="map-badge" id="mapMode">試作版 v3・診断付き</span>
       </div>
       <div class="toolbar">
         <label class="choose-pref">表示する都道府県
@@ -54,7 +53,10 @@
         <span><i style="--swatch:#eef2ef"></i>未踏</span>
       </div>
       <div id="map" role="application" aria-label="日本の都道府県・市区町村の操作可能な地図"></div>
-      <div class="map-foot"><span id="statusText" role="status">地図と自治体データを読み込み中です…</span><button id="retryButton" class="button muted-button" type="button" hidden>データ再取得</button></div>
+      <div class="map-foot"><span id="statusText" role="status">MapLibreを起動する準備をしています…</span><button id="retryButton" class="button muted-button" type="button" hidden>データ再取得</button></div>
+      <div id="diagnosticBox" class="diagnostic-box" role="status" aria-live="polite">
+        <strong>診断 v3</strong> <span id="diagnosticText">画面は表示されました。診断用プログラムを準備しています。ここが変わらない場合はJavaScriptが動いていません。</span>
+      </div>
     </section>
 
     <section class="under-map">
@@ -69,17 +71,57 @@
     </section>
     <footer>試作版：全国自治体一覧 Code for Fukui／県境 SmartNews SMRI／市区町村境界 ricewin simplify-japan-geojson／背景 Esriほか。外部地図・データの取得には通信が必要です。<br>MapLibre GL JSの試作ページです。元アプリのファイルと記録には変更を加えません。</footer>
   </main>
-  <!-- CDNやapp.jsの読み込みが止まっても、原因を画面に出す保険。 -->
+  <!-- 地図用の外部ライブラリに依存しない、独立した診断プログラム。 -->
   <script>
-    setTimeout(function () {
-      if (!window.MapTrialStarted) {
-        const el = document.getElementById('statusText');
-        if (el) {
-          el.textContent = '試作版のプログラムを取得できませんでした。ネット接続とJavaScriptの読み込みをご確認ください。';
-          el.classList.add('error');
-        }
+  (function () {
+    'use strict';
+    var diagnostic = document.getElementById('diagnosticText');
+    var box = document.getElementById('diagnosticBox');
+    var stage = 'HTML v3 の表示完了';
+    var mapReady = false;
+    var fault = '';
+    function show(message, error) {
+      if (!diagnostic) return;
+      diagnostic.textContent = message;
+      box.classList.toggle('error', Boolean(error));
+    }
+    window.MapTrialDiagnostics = {
+      version: 'v3',
+      mark: function (next) {
+        stage = String(next);
+        if (!fault) show(stage, false);
+      },
+      fail: function (message) {
+        fault = String(message);
+        show('停止箇所：' + stage + ' ／ ' + fault, true);
+      },
+      ready: function () {
+        mapReady = true;
+        fault = '';
+        stage = '地図エンジン起動成功。県境データを取得中です。';
+        show(stage, false);
       }
-    }, 12000);
+    };
+    show('HTML v3 の表示に成功。地図プログラムの読み込みを開始します。', false);
+    window.addEventListener('error', function (event) {
+      var target = event.target;
+      if (target && target !== window && target.tagName === 'SCRIPT') {
+        window.MapTrialDiagnostics.fail('スクリプトの取得に失敗：' + (target.src || '(不明)'));
+      } else if (event.message) {
+        window.MapTrialDiagnostics.fail('JavaScript エラー：' + event.message + (event.lineno ? ' （' + event.lineno + '行）' : ''));
+      }
+    }, true);
+    window.addEventListener('unhandledrejection', function (event) {
+      var reason = event.reason;
+      window.MapTrialDiagnostics.fail('処理エラー：' + (reason && reason.message || String(reason)));
+    });
+    setTimeout(function () {
+      if (!mapReady && !fault) window.MapTrialDiagnostics.mark('まだ地図が起動していません。15秒経過したら停止箇所を表示します。');
+    }, 7000);
+    setTimeout(function () {
+      if (!mapReady && !fault) window.MapTrialDiagnostics.fail('地図エンジンが15秒以内に起動しませんでした。通信制限・WebGL・スクリプトのエラーを調べてください。');
+    }, 15000);
+  })();
   </script>
 </body>
 </html>

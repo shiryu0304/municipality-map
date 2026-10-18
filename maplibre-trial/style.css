@@ -94,3 +94,8 @@ body.map-fullscreen { overflow:hidden; }
  .map-panel.is-fullscreen .options { gap:8px; }
 }
 @media(prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; } }
+
+/* v3: JavaScriptやCDNが止まっても必ず画面に残る診断欄。 */
+.diagnostic-box { margin:10px 1px 3px; padding:10px 12px; border:1px solid #9ebac5; border-radius:9px; background:#f0f7fa; color:#214a5d; font-size:12px; line-height:1.7; overflow-wrap:anywhere; }
+.diagnostic-box strong { display:inline-block; margin-right:8px; }
+.diagnostic-box.error { background:#fff0ef; border-color:#de9d99; color:#972d28; font-weight:700; }
