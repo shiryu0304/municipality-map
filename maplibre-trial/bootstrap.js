@@ -1,4 +1,4 @@
-/* MapLibre試作版 v4。2つの配信先を順番に試し、失敗箇所を診断欄に出します。 */
+/* MapLibre試作版 v5。2つの配信先を順番に試し、失敗箇所を診断欄に出します。 */
 (function () {
   'use strict';
   var diag = window.MapTrialDiagnostics;
@@ -43,7 +43,7 @@
       return;
     }
     diag && diag.mark('MapLibre取得成功。アプリの地図処理を開始しています。');
-    try { await loadScript('app.js?v=4', 5000); }
+    try { await loadScript('app.js?v=5', 5000); }
     catch (error) { diag && diag.fail('app.js を読み込めませんでした：' + error.message); return; }
     if (!window.MapTrialStarted) diag && diag.fail('app.js は取得できましたが起動処理に入れませんでした。');
   }

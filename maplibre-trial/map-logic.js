@@ -146,7 +146,7 @@
       if (!municipality || municipality.prefecture !== prefecture || !f.geometry) return null;
       return { ...f, properties: {
         ...f.properties, pref: municipality.prefecture, name: municipality.name,
-        code: municipality.code, status: normalizeStatus(records[municipality.code]?.status)
+        code: municipality.code, type: municipality.type, status: normalizeStatus(records[municipality.code]?.status)
       }};
     }).filter(Boolean);
     if (!features.length) throw new Error(`${prefecture}の境界と自治体一覧を対応付けられません`);
@@ -221,9 +221,35 @@
           if (widest) break;
         }
       }
-      if (Number.isFinite(lon) && Number.isFinite(lat)) best={ lon, lat, area };
+      if (Number.isFinite(lon) && Number.isFinite(lat)) {
+        let west = Infinity, east = -Infinity, south = Infinity, north = -Infinity;
+        for (const point of ring) {
+          if (!Number.isFinite(point?.[0]) || !Number.isFinite(point?.[1])) continue;
+          west = Math.min(west, point[0]); east = Math.max(east, point[0]);
+          south = Math.min(south, point[1]); north = Math.max(north, point[1]);
+        }
+        best = { lon, lat, area, widthDegrees: east - west, heightDegrees: north - south };
+      }
     }
     return best;
+  }
+
+
+  // 元アプリ同様、長細い自治体では縦に並べた地名を使う。
+  // 描画中はこれを再計算しないので、滑らかなズーム・移動を妨げない。
+  function getLabelLayout(item) {
+    const nameLength = Math.max(1, [...String(item.name || '')].length);
+    const lonPixelsAtZoom8 = 256 * 2 ** 8 / 360;
+    const latitudeScale = 1 / Math.max(0.2, Math.cos(item.lat * Math.PI / 180));
+    const horizontalPixels = Math.max(0, item.widthDegrees || 0) * lonPixelsAtZoom8 * 0.84;
+    const verticalPixels = Math.max(0, item.heightDegrees || 0) * lonPixelsAtZoom8 * latitudeScale * 0.82;
+    const horizontalFit = horizontalPixels / nameLength;
+    const verticalFit = Math.min(horizontalPixels, verticalPixels / nameLength);
+    const vertical = verticalFit > horizontalFit * 1.38 && verticalPixels > horizontalPixels * 1.5;
+    const limit = item.type === '市' ? 16 : 13;
+    // 地図をズームアウトした時も読める最小サイズを確保（重なりは許容）。
+    const fontSizeAtZoom8 = Math.max(8, Math.min(limit, vertical ? verticalFit : horizontalFit));
+    return { vertical, fontSizeAtZoom8 };
   }
 
   function makeLabels(features) {
@@ -234,19 +260,23 @@
       if (!center) continue;
       const previous = byCode.get(code);
       if (!previous || center.area > previous.area) {
-        byCode.set(code, { ...center, code, name: feature.properties.name });
+        byCode.set(code, { ...center, code, name: feature.properties.name,
+          type: feature.properties.type || '市' });
       }
     }
-    return { type:'FeatureCollection', features:[...byCode.values()].map(label => ({
-      type:'Feature', properties:{name:label.name,code:label.code},
-      geometry:{ type:'Point', coordinates:[label.lon,label.lat] }
-    })) };
+    return { type:'FeatureCollection', features:[...byCode.values()].map(label => {
+      const layout = getLabelLayout(label);
+      return { type:'Feature', properties:{ name:label.name, code:label.code,
+        displayName: layout.vertical ? [...label.name].join('\n') : label.name,
+        vertical:layout.vertical, fontSizeAtZoom8:layout.fontSizeAtZoom8 },
+        geometry:{ type:'Point', coordinates:[label.lon,label.lat] } };
+    }) };
   }
 
   const exported = {
     normalizeStatus, normalizeMapCode, normalizeMunicipalityData, createMunicipalityIndex,
     findMunicipality, collectRegions, parseRecordBackup, prefectureProgress, progressBand,
-    preparePrefectureOutlines, enrichPrefectureFeatures, enrichMunicipalityFeatures, getGeoJSONBounds, findLabelCenter, makeLabels
+    preparePrefectureOutlines, enrichPrefectureFeatures, enrichMunicipalityFeatures, getGeoJSONBounds, findLabelCenter, getLabelLayout, makeLabels
   };
   root.MapTrialLogic = exported;
   if (typeof module !== 'undefined' && module.exports) module.exports = exported;

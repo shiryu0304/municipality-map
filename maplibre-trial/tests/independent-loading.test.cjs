@@ -31,6 +31,7 @@ function makeEnv() {
       geoSources.set(id, {data:src.data, setData(data) {this.data=data;}});
     }
     addLayer(layer) {added.push(['layer',layer.id]);}
+    moveLayer(id) {added.push(['move-layer',id]);}
     getSource(id) {return geoSources.get(id);}
     getLayer(id) { return added.some(([type,name])=>type==='layer'&&name===id) ? {} : undefined; }
     setLayoutProperty() {}

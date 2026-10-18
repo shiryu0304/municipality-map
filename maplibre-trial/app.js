@@ -176,28 +176,43 @@
     map.addLayer({ id: 'prefecture-fill', type: 'fill', source: 'prefectures',
       paint: { 'fill-color': ['get', 'fill'], 'fill-opacity': 0.76 } });
     map.addLayer({ id: 'prefecture-line', type: 'line', source: 'prefectures',
-      paint: { 'line-color': '#244b3d', 'line-width': ['interpolate',['linear'],['zoom'],3,0.8,8,2.6,11,3.3], 'line-opacity': 0.96 } });
+      paint: { 'line-color': '#264638', 'line-width': 1.4, 'line-opacity': 0.95 } });
     map.addLayer({ id: 'municipality-fill', type: 'fill', source: 'municipalities',
       layout: { visibility: 'none' },
       paint: {
         'fill-color': ['match', ['get','status'], 'visited','#19865b', 'passed','#f09740', '#f4f8f5'],
-        'fill-opacity': ['match', ['get','status'], 'visited',0.70, 'passed',0.77, 0.13]
+        'fill-opacity': ['match', ['get','status'], 'visited',0.64, 'passed',0.78, 0.05]
       }
     });
     map.addLayer({ id: 'municipality-line', type: 'line', source: 'municipalities',
       layout: { visibility: 'none' },
       paint: {
         'line-color': ['match',['get','status'],'visited','#235743','passed','#9c4811','#53685b'],
-        'line-width': ['interpolate',['linear'],['zoom'],4,0.25,8,0.8,12,1.2],
+        'line-width': ['interpolate',['linear'],['zoom'],4,0.35,8,0.65,12,1.15],
         'line-opacity': 0.87
       }
     });
+    // 元アプリと同じく県境を市区町村の境界線より前面に置く。
+    // ただし地名の邪魔をしないよう、文字レイヤーはさらに前に置く。
+    map.moveLayer('prefecture-line');
     map.addLayer({ id: 'municipality-labels', type: 'symbol', source: 'municipality-labels',
-      minzoom: 6,
-      layout: { visibility: 'none', 'text-field': ['get','name'], 'text-font': ['Open Sans Regular'],
-        'text-size': ['interpolate',['linear'],['zoom'],6,9,9,12,12,16],
-        'text-max-width': 8, 'text-padding': 2, 'text-allow-overlap': false, 'text-ignore-placement': false },
-      paint: { 'text-color': '#152d24', 'text-halo-color': 'rgba(255,255,255,.96)', 'text-halo-width': 1.4 }
+      minzoom: 4,
+      layout: {
+        visibility: 'none',
+        'text-field': ['get', 'displayName'],
+        'text-font': ['Open Sans Regular'],
+        // 元アプリの「すべての自治体名を表示」を優先。重なりは許容する。
+        'text-allow-overlap': true, 'text-ignore-placement': true,
+        'text-padding': 0, 'text-anchor': 'center',
+        'text-line-height': 0.95, 'text-max-width': 20,
+        // 地名位置・文字種別は県切り替え時に作るだけ。操作中はMapLibreで描画する。
+        'text-size': ['interpolate', ['linear'], ['zoom'],
+          5, 7,
+          8, ['get', 'fontSizeAtZoom8'],
+          11, ['min', 22, ['*', ['get', 'fontSizeAtZoom8'], 1.8]]
+        ]
+      },
+      paint: { 'text-color': '#152d24', 'text-halo-color': 'rgba(255,255,255,.97)', 'text-halo-width': 1.2 }
     });
   }
 
@@ -205,6 +220,13 @@
     const filter = selectedPrefecture ? ['==',['get','pref'], selectedPrefecture] : null;
     for (const id of ['prefecture-fill', 'prefecture-line']) {
       if (map.getLayer(id)) map.setFilter(id, filter);
+    }
+    // 全国は控えめな県境、県内では元アプリ同様に太い県境を描く。
+    if (map.getLayer('prefecture-line')) {
+      map.setPaintProperty('prefecture-line', 'line-color', selectedPrefecture ? '#1b251e' : '#264638');
+      map.setPaintProperty('prefecture-line', 'line-width', selectedPrefecture
+        ? ['step', ['zoom'], 2.5, 8, 4]
+        : 1.4);
     }
   }
 

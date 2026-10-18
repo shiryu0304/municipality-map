@@ -1,48 +1,32 @@
-市区町村制覇アプリ MapLibre試作版 v4（地図起動エラー修正版）
-2026年10月18日
+MapLibre試作版 v5：元アプリに近い地図表示（2026-10-18）
 
-【確認できた原因】
-ユーザーから送られた診断 v3 の画面：
-  JavaScript エラー: TypeError: maplibregl.supported is not a function. (462行)
+【変更したもの】
+ maplibre-trial/app.js：訪問色と境界線の太さ、県境を前面に、全地名表示を優先
+ maplibre-trial/map-logic.js：狭い自治体の文字サイズ・縦長の自治体名の配置情報
+ maplibre-trial/index.html：表示文言と新バージョンの読み込み指定
+ maplibre-trial/bootstrap.js：キャッシュ対策（app.js?v=5）
+ maplibre-trial/tests/display-parity.test.cjs：追加の確認用テスト
 
-MapLibreライブラリは読み込まれていますが、app.jsが利用できない関数
-maplibregl.supported()を呼んで、その時点で止まっていました。
-
-【今回の変更】
-・maplibre-trial/app.js：存在しない関数の呼び出しを削除。
-  WebGLの起動失敗は地図生成時のエラーとして表示する方式に変更。
-・maplibre-trial/bootstrap.js：app.jsのバージョンを4に変更し、古いキャッシュを避ける。
-・maplibre-trial/index.html：表示を「診断 v4」に変更、読み込み用の番号を4へ更新。
-・maplibre-trial/tests/：このエラーが再発しないようテスト追加・更新。
-・maplibre-trial/map-logic.js、style.css：変更なし。
-・元のアプリ index.html、app.js、style.css：変更なし。
-
-【導入前のバックアップ】
-1. 元のアプリで訪問記録のJSONを保存します。PCとiPhoneで別々に使っている
-   場合は両方で書き出します。
-2. GitHub Desktopを開き、現在の作業内容を確認して必要ならコミットします。
-3. 可能なら municipality-map フォルダも別の場所へコピーしておきます。
+【元アプリは安全】
+ 元の index.html、app.js、style.css は一切変更しません。
+ 元アプリの訪問記録 localStorage は読み取りのみ。書き込み・削除はしません。
+ MapLibre試作版で記録の編集はできません。
 
 【導入手順】
-1. ZIPを右クリックして「すべて展開」を選びます。
-2. 展開した「maplibre-trial」フォルダを、既存の「municipality-map」
-   フォルダの中へコピーします。既存ファイルの置き換えを選択します。
-3. GitHub Desktopの Changes で、変更されたファイルが
-   「maplibre-trial/」の中だけであることを確認してください。
-4. 左下のSummaryに「MapLibre v4 地図起動エラー修正」と入力し、
-   「Commit to main」→「Push origin」をクリックします。
-5. 公開が反映されたら、下記のURLから新しいページを開いてください。
-   https://shiryu0304.github.io/municipality-map/maplibre-trial/?check=v4-20261018
-6. 地図の下が「診断 v4」と表示されることを確かめてください。
+ 1. 元アプリでJSONバックアップを取ります。PCとiPhoneで別の記録があれば両方保存してください。
+ 2. GitHub Desktopで作業中の変更をコミットし、Pushして保管します。
+ 3. ZIPを右クリック→「すべて展開」。
+ 4. 展開後の maplibre-trial フォルダを、既存の municipality-map フォルダへ上書きコピーします。
+ 5. GitHub DesktopのChanges画面で変更が maplibre-trial の中だけであると確認します。
+ 6. Summaryへ「MapLibre地図の県境と自治体名を改善」と入力 → Commit to main → Push origin。
+ 7. 公開後は https://shiryu0304.github.io/municipality-map/maplibre-trial/?check=v5-20261018 で確認。
 
-【PCとiPhoneでの確認】
-・最初に日本の都道府県の輪郭が表示されるか。
-・「診断 v4」にエラーが表示されていないか。
-・PC：マウスドラッグとホイールで滑らかに移動・拡大縮小できるか。
-・iPhone：1本指で移動、2本指で拡大縮小できるか。
-・県を選んだとき、市区町村の地図と訪問済みの色が表示されるか。
-・元のアプリが今までどおり動き、訪問記録が残っているか。
+【確認項目】
+ PC：都道府県を選ぶ→訪問=緑、通過=橙、未踏=淡い色、県境が太く表示。全自治体名を表示。マウス移動とホイールが滑らか。
+ iPhone：都道府県切替、1本指で移動、2本指で拡大縮小。画面全体・全画面表示。県境・地名が正しい。
+ 注意：地名は重ならないよう間引くのではなく、見えることを優先したため、密集地域で重なります。
+ どちらもJSONを読み込んだ場合は色分けが変わることを確認。元アプリの記録は変更されません。
+ 問題があれば診断 v5 の赤いエラー内容と画面をお知らせください。
 
-【まだ表示されない場合】
-「診断 v4」の枠内の文章を、そのままスクリーンショットで送ってください。
-プログラムの自動テストは行っていますが、実機・GitHub Pagesの動作は未確認です。
+【制約】
+ ブラウザ実機・公開後の動作は未確認です。データは外部取得のため、ネット接続が必要です。
