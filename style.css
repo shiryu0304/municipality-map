@@ -355,3 +355,30 @@ body.map-fullscreen-active { overflow: hidden; }
     padding: 8px 8px;
   }
 }
+
+
+/* MapLibre v5を本体へ統合（既存レイアウト・訪問記録UIは変更しない）。 */
+#japanMap, #japanMap.maplibregl-map {
+  background: #dbe6ec;
+  border-radius: 11px;
+  overflow: hidden;
+}
+#japanMap .maplibregl-canvas { outline: none; }
+#japanMap .maplibregl-ctrl-attrib { font-size: 10px !important; }
+#japanMap .maplibregl-ctrl-bottom-left,
+#japanMap .maplibregl-ctrl-bottom-right { max-width: calc(100% - 12px); }
+.map-options { display: flex; gap: 10px 22px; flex-wrap: wrap; align-items: center; margin: 0 0 12px; }
+.map-options label { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.map-options input[type=checkbox] { width: 16px; height: 16px; accent-color: #176b57; }
+#mapDetailStatus.map-error { color: #ab3434; font-weight: 700; }
+.maplibre-record-popup { display: flex; flex-direction: column; gap: 7px; min-width: 135px; color: #173c30; }
+.maplibre-record-popup strong { font-size: 16px; }
+.maplibre-record-popup p { margin: 0; font-size: 12px; }
+.maplibre-record-popup .button { font-size: 12px; padding: 8px 12px; cursor: pointer; }
+.map-panel.is-map-fullscreen > .map-options { display: none; }
+.map-panel.is-map-fullscreen #japanMap { border-radius: 0; }
+.map-panel.is-map-fullscreen #japanMap .maplibregl-ctrl-bottom-right { bottom: env(safe-area-inset-bottom); }
+@media(max-width: 650px) {
+  .map-options { gap: 8px 14px; }
+  .map-options label { font-size: 12px; }
+}
