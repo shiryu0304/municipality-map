@@ -153,6 +153,87 @@
     return { type: 'FeatureCollection', features };
   }
 
+  // 選択した県の外周を「市区町村と全く同じ座標」から求める。
+  // 隣り合う自治体が共有する辺は2回登場するので除去し、外側の辺だけ残す。
+  // 加工前の県内全フィーチャーを対象にし、訪問記録との対応有無で外周が欠けないようにする。
+  // GeoJSONとして返す線は同じ座標をつなぎ直すだけで、補間・座標の丸めは行わない。
+  function createDetailedPrefectureOutline(data, prefecture) {
+    if (!data || data.type !== 'FeatureCollection' || !Array.isArray(data.features)) {
+      throw new Error('県境を構成する市区町村境界データの形式が正しくありません');
+    }
+    const edges = new Map();
+    const points = new Map();
+    let polygonCount = 0;
+    function vertexKey(point) { return `${point[0]},${point[1]}`; }
+    function addEdge(a, b) {
+      if (!Array.isArray(a) || !Array.isArray(b) ||
+          ![a[0], a[1], b[0], b[1]].every(Number.isFinite)) return;
+      const ak = vertexKey(a), bk = vertexKey(b);
+      if (ak === bk) return;
+      points.set(ak, [a[0], a[1]]);
+      points.set(bk, [b[0], b[1]]);
+      const key = ak < bk ? `${ak}|${bk}` : `${bk}|${ak}`;
+      // 偶数回現れる辺（県内の隣接境界）は県の外周ではない。
+      if (edges.has(key)) edges.delete(key);
+      else edges.set(key, [ak, bk]);
+    }
+    function addPolygon(polygon) {
+      if (!Array.isArray(polygon)) return;
+      polygonCount++;
+      for (const ring of polygon) {
+        if (!Array.isArray(ring) || ring.length < 3) continue;
+        for (let i = 1; i < ring.length; i++) addEdge(ring[i - 1], ring[i]);
+        addEdge(ring[ring.length - 1], ring[0]);
+      }
+    }
+    for (const feature of data.features) {
+      if (String(feature?.properties?.N03_001 || '').trim() !== prefecture) continue;
+      const geometry = feature?.geometry;
+      if (geometry?.type === 'Polygon') addPolygon(geometry.coordinates);
+      if (geometry?.type === 'MultiPolygon') {
+        for (const polygon of geometry.coordinates || []) addPolygon(polygon);
+      }
+    }
+    if (!polygonCount || !edges.size) throw new Error(`${prefecture}の詳細な県境を作成できませんでした`);
+
+    // 小さな辺を一続きの線にすることで、描画する地物の数を抑える。
+    const segments = [...edges.values()];
+    const connected = new Map();
+    function connect(key, index) {
+      if (!connected.has(key)) connected.set(key, []);
+      connected.get(key).push(index);
+    }
+    segments.forEach(([a, b], i) => { connect(a, i); connect(b, i); });
+    const used = new Uint8Array(segments.length);
+    function trace(start) {
+      const coordinates = [points.get(start)];
+      let current = start;
+      while (true) {
+        const next = connected.get(current)?.find(i => !used[i]);
+        if (next === undefined) break;
+        used[next] = 1;
+        const [a, b] = segments[next];
+        current = a === current ? b : a;
+        coordinates.push(points.get(current));
+        if (current === start || connected.get(current).length !== 2) break;
+      }
+      return coordinates;
+    }
+    const lines = [];
+    for (const [key, attached] of connected) {
+      if (attached.length === 2) continue;
+      for (const i of attached) {
+        if (!used[i]) lines.push(trace(key));
+      }
+    }
+    for (let i = 0; i < segments.length; i++) {
+      if (!used[i]) lines.push(trace(segments[i][0]));
+    }
+    return { type: 'FeatureCollection', features: lines.filter(line => line.length >= 2)
+      .map(coordinates => ({ type: 'Feature', properties: { pref: prefecture },
+        geometry: { type: 'LineString', coordinates } })) };
+  }
+
   function getGeoJSONBounds(features) {
     const bounds = [Infinity, Infinity, -Infinity, -Infinity]; // west,south,east,north
     function traverse(coords) {
@@ -276,7 +357,8 @@
   const exported = {
     normalizeStatus, normalizeMapCode, normalizeMunicipalityData, createMunicipalityIndex,
     findMunicipality, collectRegions, parseRecordBackup, prefectureProgress, progressBand,
-    preparePrefectureOutlines, enrichPrefectureFeatures, enrichMunicipalityFeatures, getGeoJSONBounds, findLabelCenter, getLabelLayout, makeLabels
+    preparePrefectureOutlines, enrichPrefectureFeatures, enrichMunicipalityFeatures, createDetailedPrefectureOutline,
+    getGeoJSONBounds, findLabelCenter, getLabelLayout, makeLabels
   };
   root.MapTrialLogic = exported;
   if (typeof module !== 'undefined' && module.exports) module.exports = exported;

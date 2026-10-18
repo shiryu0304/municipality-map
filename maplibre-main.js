@@ -117,6 +117,8 @@
     map.addSource('prefectures', { type: 'geojson', data: EMPTY });
     map.addSource('municipalities', { type: 'geojson', data: EMPTY });
     map.addSource('municipality-labels', { type: 'geojson', data: EMPTY });
+    // 選択した県だけ、市区町村と同じ座標から組み立てた境界線を使う。
+    map.addSource('prefecture-detail-outline', { type: 'geojson', data: EMPTY });
 
     map.addLayer({ id: 'prefecture-fill', type: 'fill', source: 'prefectures',
       paint: { 'fill-color': ['get', 'fill'], 'fill-opacity': 0.76 } });
@@ -137,7 +139,10 @@
         'line-opacity': 0.87
       }
     });
-    map.moveLayer('prefecture-line'); // 市区町村の境界より県境を前に表示
+    map.moveLayer('prefecture-line'); // 全国表示と詳細データ読み込み中に使う県境
+    map.addLayer({ id: 'prefecture-detail-line', type: 'line', source: 'prefecture-detail-outline',
+      layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#1b251e', 'line-width': ['step', ['zoom'], 2.5, 8, 4], 'line-opacity': 0.95 } });
     map.addLayer({ id: 'municipality-labels', type: 'symbol', source: 'municipality-labels',
       minzoom: 4,
       layout: {
@@ -174,7 +179,9 @@
     const national = !selectedPrefecture;
     const ready = !national && detailCache.has(selectedPrefecture);
     showLayer('prefecture-fill', national || !ready);
-    showLayer('prefecture-line', true);
+    // 粗い全国の県境と詳細な県境を重ねない（ずれ・二重線を防止）。
+    showLayer('prefecture-line', national || !ready);
+    showLayer('prefecture-detail-line', ready);
     showLayer('municipality-fill', ready);
     showLayer('municipality-line', ready);
     showLayer('municipality-labels', ready && $('mapLabelsToggle')?.checked);
@@ -270,6 +277,7 @@
     const processed = logic.enrichMunicipalityFeatures(cached.raw, prefecture, index, app.getRecords());
     map.getSource('municipalities').setData(processed);
     map.getSource('municipality-labels').setData(cached.labels);
+    map.getSource('prefecture-detail-outline').setData(cached.outline);
     updateLayerModes();
     const count = new Set(processed.features.map(feature => feature.properties.code)).size;
     setBadge(`${prefecture} · ${count}自治体`);
@@ -290,8 +298,10 @@
       const data = await fetchJSON(`${DETAIL_BASE_URL}${code}.json`, { signal: controller.signal });
       const processed = logic.enrichMunicipalityFeatures(data, prefecture, index, app.getRecords());
       const labels = logic.makeLabels(processed.features);
+      // 元の市区町村GeoJSONから、共有する内部境界だけを除いた県の外周線を生成。
+      const outline = logic.createDetailedPrefectureOutline(data, prefecture);
       detailCache.delete(prefecture);
-      detailCache.set(prefecture, { raw: data, labels });
+      detailCache.set(prefecture, { raw: data, labels, outline });
       while (detailCache.size > 3) detailCache.delete(detailCache.keys().next().value);
       if (token !== detailToken || selectedPrefecture !== prefecture) return;
       displayCachedDetail(prefecture);
@@ -321,6 +331,7 @@
     maplibreglPopup?.remove();
     map.getSource('municipalities').setData(EMPTY);
     map.getSource('municipality-labels').setData(EMPTY);
+    map.getSource('prefecture-detail-outline').setData(EMPTY);
     applyBorderFilter();
     updateLayerModes();
     if (!prefecture) {
