@@ -307,13 +307,93 @@ function getLocalDateString(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+// 旧記録の date はそのまま読み取れるように残し、複数日・期間だけ visitDates を追加保存する。
+// visitDates は [{start:"YYYY-MM-DD", end:""}, {start:"YYYY-MM-DD", end:"YYYY-MM-DD"}] 形式。
+// ページ表示だけでは既存の保存データを書き換えない。
+let extraVisitDateRows = [];
+
+function isValidVisitDate(value) {
+  if (typeof value !== "string") return false;
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!parts) return false;
+  const year = Number(parts[1]);
+  const month = Number(parts[2]);
+  const day = Number(parts[3]);
+  const parsed = new Date(0);
+  parsed.setUTCHours(0, 0, 0, 0);
+  parsed.setUTCFullYear(year, month - 1, day);
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() + 1 === month && parsed.getUTCDate() === day;
+}
+
+function isValidVisitEntry(entry) {
+  return entry && typeof entry === "object" && !Array.isArray(entry)
+    && isValidVisitDate(entry.start)
+    && (entry.end === "" || entry.end === undefined || (isValidVisitDate(entry.end) && entry.end >= entry.start));
+}
+
+function getVisitEntries(record) {
+  // 新形式のデータがある場合はそちらを優先する。旧形式は単日1件として扱う。
+  if (Array.isArray(record.visitDates) && record.visitDates.length) {
+    return record.visitDates.filter(isValidVisitEntry)
+      .map(entry => ({ start: entry.start, end: entry.end || "" }));
+  }
+  return isValidVisitDate(record.date) ? [{ start: record.date, end: "" }] : [];
+}
+
+function addExtraVisitDateRow(kind, start = "", end = "") {
+  const row = document.createElement("div");
+  row.className = "visit-date-row";
+  const fields = document.createElement("div");
+  fields.className = `visit-date-fields${kind === "range" ? " is-range" : ""}`;
+  const startLabel = document.createElement("label");
+  startLabel.textContent = kind === "range" ? "開始日" : "追加の日付";
+  const startInput = document.createElement("input");
+  startInput.type = "date";
+  startInput.value = start;
+  startLabel.append(startInput);
+  fields.append(startLabel);
+  let endInput = null;
+  if (kind === "range") {
+    const endLabel = document.createElement("label");
+    endLabel.textContent = "終了日（当日を含む）";
+    endInput = document.createElement("input");
+    endInput.type = "date";
+    endInput.value = end;
+    endLabel.append(endInput);
+    fields.append(endLabel);
+  }
+  const removeButton = document.createElement("button");
+  removeButton.type = "button";
+  removeButton.className = "button secondary visit-date-remove";
+  removeButton.textContent = "削除";
+  removeButton.setAttribute("aria-label", kind === "range" ? "この滞在期間を削除" : "この追加日を削除");
+  const entry = { row, kind, startInput, endInput };
+  removeButton.addEventListener("click", () => {
+    extraVisitDateRows = extraVisitDateRows.filter(item => item !== entry);
+    $("additionalVisitDates").replaceChildren(...extraVisitDateRows.map(item => item.row));
+  });
+  row.append(fields, removeButton);
+  extraVisitDateRows.push(entry);
+  $("additionalVisitDates").append(row);
+}
+
 function openRecordDialog(municipality) {
   const record = getRecord(municipality.code);
   $("recordCode").value = municipality.code;
   $("dialogTitle").textContent = `${municipality.name}の記録`;
   $("recordStatus").value = record.status;
-  const wasTravelled = record.status === "visited" || record.status === "passed";
-  $("recordDate").value = record.date || (wasTravelled ? getLocalDateString() : "");
+  $("recordDate").value = ""; // 未設定なら今日の日付を自動入力しない。
+  extraVisitDateRows = [];
+  $("additionalVisitDates").replaceChildren();
+  let firstSingleDateUsed = false;
+  for (const entry of getVisitEntries(record)) {
+    if (!entry.end && !firstSingleDateUsed) {
+      $("recordDate").value = entry.start;
+      firstSingleDateUsed = true;
+    } else {
+      addExtraVisitDateRow(entry.end ? "range" : "single", entry.start, entry.end);
+    }
+  }
   $("recordMemo").value = record.memo || "";
   dialog.showModal();
 }
@@ -322,16 +402,53 @@ function closeDialog() {
   dialog.close();
 }
 
+function collectVisitEntries() {
+  const entries = [];
+  const primary = $("recordDate").value;
+  if (primary) {
+    if (!isValidVisitDate(primary)) {
+      alert("訪問日の形式を確認してください。");
+      return null;
+    }
+    entries.push({ start: primary, end: "" });
+  }
+  for (const row of extraVisitDateRows) {
+    const start = row.startInput.value;
+    const end = row.endInput ? row.endInput.value : "";
+    if (!start && !end) continue; // 空欄の追加行は日付未設定として無視する。
+    if (!isValidVisitEntry({ start, end }) || (row.kind === "range" && !end)) {
+      alert("日付を確認してください。滞在期間には開始日と終了日の両方が必要で、終了日は開始日以降にしてください。");
+      return null;
+    }
+    entries.push({ start, end });
+  }
+  // 同じ日付・期間を重複登録しない。長期滞在の全日付を展開せず、開始日・終了日を保存する。
+  const unique = new Map(entries.map(entry => [`${entry.start}/${entry.end}`, entry]));
+  return [...unique.values()];
+}
+
+$("addVisitDateButton").addEventListener("click", () => addExtraVisitDateRow("single"));
+$("addVisitPeriodButton").addEventListener("click", () => addExtraVisitDateRow("range"));
+
 $("recordForm").addEventListener("submit", (event) => {
   event.preventDefault();
   const code = $("recordCode").value;
   const status = $("recordStatus").value;
   const previousRecord = records[code];
-  records[code] = {
+  const visitEntries = status === "unvisited" ? [] : collectVisitEntries();
+  if (visitEntries === null) return; // 不正な日付の場合、記録を上書きしない。
+  const newRecord = {
+    ...(previousRecord && typeof previousRecord === "object" && !Array.isArray(previousRecord) ? previousRecord : {}),
     status,
-    date: status === "unvisited" ? "" : $("recordDate").value,
+    date: visitEntries[0]?.start || "", // 旧バージョンとも互換性を保つ代表日。
     memo: $("recordMemo").value.trim()
   };
+  if (visitEntries.length > 1 || visitEntries.some(entry => entry.end)) {
+    newRecord.visitDates = visitEntries;
+  } else {
+    delete newRecord.visitDates;
+  }
+  records[code] = newRecord;
   if (!saveRecords()) {
     if (previousRecord === undefined) delete records[code];
     else records[code] = previousRecord;
@@ -386,11 +503,19 @@ $("importInput").addEventListener("change", async (event) => {
     for (const [code, value] of Object.entries(imported)) {
       if (allowed.has(code) && value && typeof value === "object" && !Array.isArray(value) &&
           ["visited", "passed", "unvisited", "want"].includes(value.status)) {
+        // 旧形式（date のみ）と新形式（visitDates）の両方を取り込む。
+        // 新形式が不正な場合は日付を黙って欠落させず、読み込み全体を中止する。
+        if (value.visitDates !== undefined && (!Array.isArray(value.visitDates) || !value.visitDates.every(isValidVisitEntry))) {
+          throw new Error("訪問日データの形式が正しくありません");
+        }
         cleaned[code] = {
           status: normalizeStatus(value.status),
           date: typeof value.date === "string" ? value.date : "",
           memo: typeof value.memo === "string" ? value.memo.slice(0, 5000) : ""
         };
+        if (value.visitDates !== undefined) {
+          cleaned[code].visitDates = value.visitDates.map(entry => ({ start: entry.start, end: entry.end || "" }));
+        }
       }
     }
     // 不正なデータや現在の自治体一覧と一致しない記録がある場合、

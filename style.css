@@ -382,3 +382,22 @@ body.map-fullscreen-active { overflow: hidden; }
   .map-options { gap: 8px 14px; }
   .map-options label { font-size: 12px; }
 }
+
+/* 訪問日の追加・滞在期間入力（2026-10-22） */
+dialog { max-height: calc(100dvh - 24px); overflow-y: auto; }
+.visit-date-section { display: grid; gap: 10px; }
+.visit-date-tools { display: flex; flex-wrap: wrap; gap: 7px; }
+.visit-date-tools .button { flex: 1 1 150px; }
+.additional-visit-dates { display: grid; gap: 9px; }
+.visit-date-row { display: flex; align-items: end; gap: 8px; padding: 10px; background: #f5f8f6; border: 1px solid var(--line); border-radius: 11px; }
+.visit-date-fields { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); flex: 1; min-width: 0; }
+.visit-date-fields.is-range { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.visit-date-row label { min-width: 0; }
+.visit-date-row input { padding: 9px 6px; min-height: 42px; }
+.visit-date-remove { flex: 0 0 auto; padding: 10px 8px; }
+.visit-date-help { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+@media (max-width: 480px) {
+  .visit-date-row { align-items: stretch; flex-direction: column; }
+  .visit-date-fields.is-range { grid-template-columns: 1fr; }
+  .visit-date-remove { align-self: flex-end; }
+}
