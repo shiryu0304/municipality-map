@@ -265,7 +265,7 @@
   function refreshRecords() {
     if (!mapLoaded || !rawPrefectureData || !app) return;
     const counts = logic.prefectureProgress(app.municipalities, app.getRecords());
-    prefectureData = logic.enrichPrefectureFeatures(rawPrefectureData, counts);
+    prefectureData = logic.enrichPrefectureFeatures(rawPrefectureData, counts, app.getHighlightCompleted?.() !== false);
     map.getSource('prefectures').setData(prefectureData);
     if (selectedPrefecture && detailCache.has(selectedPrefecture)) displayCachedDetail(selectedPrefecture);
   }
@@ -410,9 +410,9 @@
     });
   }
 
-  async function initialize({ municipalities, getRecords, openRecordDialog, regions }) {
+  async function initialize({ municipalities, getRecords, openRecordDialog, regions, getHighlightCompleted }) {
     app = {
-      municipalities, getRecords, openRecordDialog, regions,
+      municipalities, getRecords, openRecordDialog, regions, getHighlightCompleted,
       municipalitiesByCode: new Map(municipalities.map(m => [m.code, m])),
       municipalitiesByPrefecture: new Set(municipalities.map(m => m.prefecture))
     };

@@ -34,7 +34,7 @@ class FakeElement {
   click(){this.dispatch('click');}
 }
 
-function createHarness({records:givenRecords}={}) {
+function createHarness({records:givenRecords, highlightCompleted}={}) {
   let records=givenRecords || { '131016':{status:'visited',date:'2026-09-01',memo:'visit'}, '272117':{status:'passed',date:'2026-09-02',memo:'pass'} };
   const elements = new Map();
   const el = id => { if (!elements.has(id)) elements.set(id,new FakeElement()); return elements.get(id); };
@@ -87,6 +87,7 @@ function createHarness({records:givenRecords}={}) {
   });
   vm.runInContext(fs.readFileSync(path.join(root, 'maplibre-main.js'), 'utf8'), context);
   const setup = window.MainMapLibre.initialize({ municipalities,getRecords:()=>records,
+    getHighlightCompleted:()=>highlightCompleted?.value !== false,
     openRecordDialog:(m)=>calls.dialogs.push(m),regions });
   const settle = async()=>{ await setup; for(let i=0;i<8;i++) await new Promise(resolve=>setImmediate(resolve)); };
   return {window,document,el,calls,get map(){return calls.maps[0];}, settle,

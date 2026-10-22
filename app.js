@@ -21,6 +21,13 @@ const STORAGE_KEY = "municipality-conquest-records-v1";
 const BEFORE_IMPORT_KEY = "municipality-conquest-before-import-v1";
 const BEFORE_RESET_KEY = "municipality-conquest-before-reset-v1";
 const LAST_EXPORT_KEY = "municipality-conquest-last-export-v1";
+const PERFECT_COLOR_SETTING_KEY = "municipality-conquest-perfect-prefecture-color-v1";
+// 訪問記録とは別に保存する表示設定。記録・バックアップの形式は変更しない。
+function loadPerfectColorSetting() {
+  try { return localStorage.getItem(PERFECT_COLOR_SETTING_KEY) !== "off"; }
+  catch (error) { console.warn("表示設定を読み込めませんでした。", error); return true; }
+}
+let highlightCompletedPrefectures = loadPerfectColorSetting();
 let municipalities = [...SAMPLE_MUNICIPALITIES];
 let municipalitiesReady = false;
 let records = loadRecords();
@@ -291,9 +298,11 @@ function renderPrefectureProgress() {
       const items = itemsByPrefecture.get(prefecture);
       const visited = items.filter(m => getRecord(m.code).status === "visited").length;
       const percent = items.length ? visited / items.length * 100 : 0;
+      const perfect = highlightCompletedPrefectures && items.length > 0 && visited === items.length;
       const button = document.createElement("button");
       button.type = "button";
-      button.className = `prefecture-progress-item${prefectureFilter.value === prefecture ? " is-active" : ""}`;
+      button.className = `prefecture-progress-item${prefectureFilter.value === prefecture ? " is-active" : ""}${perfect ? " is-perfect" : ""}`;
+      if (perfect) button.title = "完全制覇（金色表示）";
       button.setAttribute("aria-label", `${prefecture}、${visited} / ${items.length}自治体、制覇率${percent.toFixed(1)}パーセント。一覧をこの都道府県に絞り込む`);
 
       const top = document.createElement("span");
@@ -606,6 +615,23 @@ $("historyStatusFilter").addEventListener("change", () => { historyPageSize = 30
 $("historySearch").addEventListener("input", () => { historyPageSize = 30; renderHistory(); });
 $("historyMoreButton").addEventListener("click", () => { historyPageSize += 30; renderHistory(); });
 
+function updatePerfectColorLegend() {
+  $("mapPerfectLegendItem").hidden = !highlightCompletedPrefectures;
+  $("mapTopBandLabel").textContent = highlightCompletedPrefectures ? "75～99%" : "75～100%";
+}
+$("highlightCompletedToggle").addEventListener("change", (event) => {
+  highlightCompletedPrefectures = event.target.checked;
+  try {
+    localStorage.setItem(PERFECT_COLOR_SETTING_KEY, highlightCompletedPrefectures ? "on" : "off");
+  } catch (error) {
+    console.warn("完全制覇の色設定を保存できませんでした。", error);
+    showToast("色は切り替わりましたが、設定を端末に保存できませんでした。");
+  }
+  updatePerfectColorLegend();
+  renderPrefectureProgress();
+  refreshMapStyles();
+});
+
 $("exportButton").addEventListener("click", () => {
   const backup = {
     app: "municipality-conquest",
@@ -817,12 +843,15 @@ function initializeMap() {
   window.MainMapLibre.initialize({
     municipalities,
     getRecords: () => records,
+    getHighlightCompleted: () => highlightCompletedPrefectures,
     openRecordDialog,
     regions: PREFECTURE_REGIONS
   });
 }
 
 async function initialize() {
+  $("highlightCompletedToggle").checked = highlightCompletedPrefectures;
+  updatePerfectColorLegend();
   // ブラウザが前回のプルダウン選択を復元した場合も、起動時は未選択から始める。
   $("historyStatusFilter").value = "";
   updateRestoreAvailability();

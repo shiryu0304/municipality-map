@@ -450,3 +450,22 @@ test('backup export timestamp is a record of an attempted download and uses a un
   assert.match(a.els.get('lastExportStatus').textContent,/書き出し操作/);
   assert.equal(a.localStore.get('municipality-conquest-records-v1'),JSON.stringify({'131016':{status:'visited',date:'',memo:''}}));
 });
+
+
+test('100-percent color setting defaults to ON and persists separately without changing visit records', async () => {
+  const initial = {'131016':{status:'visited',date:'2026-01-01',memo:'kept'}};
+  const a = start(initial); await wait();
+  assert.equal(a.els.get('highlightCompletedToggle').checked,true);
+  assert.equal(a.els.get('mapTopBandLabel').textContent,'75～99%');
+  assert.equal(a.els.get('mapPerfectLegendItem').hidden,false);
+  const key='municipality-conquest-perfect-prefecture-color-v1';
+  a.els.get('highlightCompletedToggle').events.change({target:{checked:false}});
+  assert.equal(a.localStore.get(key),'off');
+  assert.equal(a.els.get('mapPerfectLegendItem').hidden,true);
+  assert.equal(a.els.get('mapTopBandLabel').textContent,'75～100%');
+  assert.deepEqual(JSON.parse(a.localStore.get('municipality-conquest-records-v1')),initial);
+  a.els.get('highlightCompletedToggle').events.change({target:{checked:true}});
+  assert.equal(a.localStore.get(key),'on');
+  assert.equal(a.els.get('mapPerfectLegendItem').hidden,false);
+  assert.deepEqual(JSON.parse(a.localStore.get('municipality-conquest-records-v1')),initial);
+});

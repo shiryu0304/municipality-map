@@ -103,7 +103,9 @@
     return byPref;
   }
 
-  function progressBand(percent) {
+  // 全国地図の塗り分け。表示設定がOFFなら従来の75～100%の緑に戻す。
+  function progressBand(percent, highlightCompleted = true) {
+    if (highlightCompleted && percent >= 100) return '#d9a43b';
     if (percent === 0) return '#eef2ef';
     if (percent < 25) return '#c4e7d2';
     if (percent < 50) return '#87cfa8';
@@ -123,7 +125,7 @@
     return { type: 'FeatureCollection', features };
   }
 
-  function enrichPrefectureFeatures(data, progress) {
+  function enrichPrefectureFeatures(data, progress, highlightCompleted = true) {
     if (!data || data.type !== 'FeatureCollection' || !Array.isArray(data.features)) {
       throw new Error('都道府県境界データの形式が正しくありません');
     }
@@ -131,7 +133,7 @@
       .map(f => {
         const pref = String(f.properties.N03_001).trim();
         const info = progress.get(pref);
-        return { ...f, properties: { ...f.properties, pref, progress: info.percent, fill: progressBand(info.percent) } };
+        return { ...f, properties: { ...f.properties, pref, progress: info.percent, fill: progressBand(info.percent, highlightCompleted) } };
       });
     if (!features.length) throw new Error('都道府県境界が見つかりません');
     return { type: 'FeatureCollection', features };

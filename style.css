@@ -448,3 +448,15 @@ html { scroll-behavior: smooth; scroll-padding-top: 14px; }
   dialog { max-height: calc(100dvh - 18px); }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* 2026-10-22: 100%制覇の県だけ金色で表示する任意設定 */
+.legend-dot.progress-perfect { background: #d9a43b; border: 1px solid #9a7524; }
+.map-legend [hidden] { display: none !important; }
+.prefecture-progress-item.is-perfect { border-color: #d5af56; background: #fffbf0; }
+.prefecture-progress-item.is-perfect .prefecture-progress-top strong { color: #7e5a17; }
+.prefecture-progress-item.is-perfect .prefecture-progress-fill { background: #d9a43b; }
+.prefecture-progress-item.is-perfect .prefecture-progress-bottom { color: #7e5a17; font-weight: 700; }
+.prefecture-progress-item.is-perfect.is-active { border-color: #b18424; box-shadow: inset 0 0 0 1px #b18424; }
+/* 日本列島のSVGを小さく鮮明に表示。ラベルは従来の「地図」を維持 */
+.mobile-nav-map { display: flex; align-items: center; justify-content: center; height: 28px; width: 28px; }
+.mobile-nav-map img { display: block; width: 27px; height: 27px; object-fit: contain; }

@@ -35,6 +35,7 @@ function setup({ unknown = false } = {}) {
   const ctx = vm.createContext({
     document: {createElement: tag => new Element(tag)},
     municipalities,
+    highlightCompletedPrefectures: true,
     prefectureFilter,
     getRecord: code => ({status: records.get(code) || 'unvisited'}),
     $: id => nodes[id],
@@ -95,8 +96,8 @@ test('unknown prefectures appear in an Other group instead of disappearing', () 
 test('regional headings span responsive columns and cache keys refresh changed CSS and JS', () => {
   assert.match(css, /\.prefecture-region-heading\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
   assert.match(css, /\.prefecture-progress-list \{ grid-template-columns: repeat\(2/);
-  assert.match(html, /style\.css\?v=history-backup-nav-20261022/);
-  assert.match(html, /app\.js\?v=history-category-select-20261022/);
+  assert.match(html, /style\.css\?v=perfect-gold-japan-icon-20261022/);
+  assert.match(html, /app\.js\?v=perfect-gold-japan-icon-20261022/);
   assert.match(html, /<details class="prefecture-progress-details">/, 'existing collapse behavior is retained');
 });
 
@@ -161,4 +162,16 @@ test('search dropdown remains selectable by prefecture name after grouping', () 
   dropdown.value = tokyo.value;
   assert.equal(dropdown.value, '東京都');
   assert.match(html, /<select id="prefectureFilter"><option value="">すべての都道府県<\/option><\/select>/);
+});
+
+
+test('prefecture cards highlight only completed visited prefectures and follow the setting', () => {
+  const a = setup();
+  const buttons = a.nodes.prefectureProgressList.children.filter(el => el.tag === 'button');
+  assert.match(buttons[0].className, /is-perfect/, 'visited 1/1 should be highlighted');
+  assert.doesNotMatch(buttons[1].className, /is-perfect/, 'passed 1/1 is not complete');
+  vm.runInContext('highlightCompletedPrefectures = false; renderPrefectureProgress()', a.ctx);
+  const updated = a.nodes.prefectureProgressList.children.filter(el => el.tag === 'button');
+  assert.doesNotMatch(updated[0].className, /is-perfect/, 'setting OFF uses the prior green appearance');
+  assert.equal(a.records.get('test0'), 'visited', 'setting does not touch saved statuses');
 });

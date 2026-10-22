@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-20261019.png">
   <link rel="icon" type="image/png" sizes="64x64" href="favicon-20261019.png">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="style.css?v=history-backup-nav-20261022">
+  <link rel="stylesheet" href="style.css?v=perfect-gold-japan-icon-20261022">
 </head>
 <body>
   <header class="topbar">
@@ -58,12 +58,13 @@
 
     <section class="panel map-panel" id="mapPanel">
       <div class="section-heading"><div><p class="eyebrow">VISIT MAP</p><h2 id="mapModeTitle">全国から都道府県を選択</h2></div><span class="badge" id="mapBadge">地図を読み込み中</span></div>
-      <div class="map-legend" id="mapOverviewLegend"><span><i class="legend-dot progress-zero"></i>0%</span><span><i class="legend-dot progress-low"></i>1～24%</span><span><i class="legend-dot progress-mid"></i>25～49%</span><span><i class="legend-dot progress-high"></i>50～74%</span><span><i class="legend-dot progress-complete"></i>75～100%</span><span>色は訪問率を表します</span></div>
+      <div class="map-legend" id="mapOverviewLegend"><span><i class="legend-dot progress-zero"></i>0%</span><span><i class="legend-dot progress-low"></i>1～24%</span><span><i class="legend-dot progress-mid"></i>25～49%</span><span><i class="legend-dot progress-high"></i>50～74%</span><span><i class="legend-dot progress-complete"></i><span id="mapTopBandLabel">75～99%</span></span><span id="mapPerfectLegendItem"><i class="legend-dot progress-perfect"></i>100%（完全制覇）</span><span>色は訪問率を表します</span></div>
       <div class="map-legend" id="mapMunicipalityLegend" hidden><span><i class="legend-dot visited"></i>訪問</span><span><i class="legend-dot passed"></i>通過</span><span><i class="legend-dot unvisited"></i>未踏</span></div>
       <div class="map-toolbar"><label>都道府県を選択<select id="mapPrefectureFilter"><option value="">全国</option></select></label><button type="button" id="resetMapView" class="button secondary" disabled>全国表示に戻す</button><button type="button" id="toggleMapFullscreen" class="button secondary" aria-pressed="false" aria-label="地図を全画面で表示">全画面表示</button></div>
       <div class="map-options" aria-label="地図の表示設定">
         <label><input type="checkbox" id="mapOceanToggle"> 背景地図を表示</label>
         <label><input type="checkbox" id="mapLabelsToggle" checked> 市区町村名を表示</label>
+        <label><input type="checkbox" id="highlightCompletedToggle" checked> 100%制覇した県を金色で表示</label>
       </div>
       <div id="japanMap" role="application" aria-label="都道府県・市区町村の訪問状況を操作できる地図"></div>
       <p id="mapDetailStatus" class="muted small" role="status">地図の都道府県をタップすると、その県の市区町村を読み込みます。</p>
@@ -152,7 +153,7 @@
 
   <nav class="mobile-bottom-nav" aria-label="画面内の移動">
     <a href="#homePanel"><span class="mobile-nav-symbol" aria-hidden="true">⌂</span><span>ホーム</span></a>
-    <a href="#mapPanel"><span class="mobile-nav-symbol" aria-hidden="true">▧</span><span>地図</span></a>
+    <a href="#mapPanel"><span class="mobile-nav-symbol mobile-nav-map" aria-hidden="true"><img src="japan-map-nav.svg" width="27" height="27" alt=""></span><span>地図</span></a>
     <a href="#searchPanel"><span class="mobile-nav-symbol" aria-hidden="true">⌕</span><span>検索</span></a>
     <a href="#historyPanel"><span class="mobile-nav-symbol" aria-hidden="true">▤</span><span>履歴</span></a>
     <a href="#backupPanel"><span class="mobile-nav-symbol" aria-hidden="true">⇩</span><span>保存</span></a>
@@ -191,8 +192,8 @@
     </form>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="maplibre-map-logic.js?v=prefecture-detail-v2-20261018"></script>
-  <script src="maplibre-main.js?v=prefecture-detail-v2-20261018"></script>
-  <script src="app.js?v=history-category-select-20261022"></script>
+  <script src="maplibre-map-logic.js?v=perfect-gold-20261022"></script>
+  <script src="maplibre-main.js?v=perfect-gold-20261022"></script>
+  <script src="app.js?v=perfect-gold-japan-icon-20261022"></script>
 </body>
 </html>
