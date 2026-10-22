@@ -350,12 +350,21 @@ function formatHistoryDate(iso) {
 }
 
 function renderHistory() {
-  const type = $("historyStatusFilter").value || "all";
+  const type = $("historyStatusFilter").value;
+  const host = $("historyList");
+  host.replaceChildren();
+  // 起動直後や「カテゴリーを選択」に戻した場合は、訪問記録を一覧へ展開しない。
+  // 検索欄に文字があっても、カテゴリーを選ぶまでは一覧を空のままにする。
+  if (!["all", "visited", "passed"].includes(type)) {
+    $("historyBadge").textContent = "—";
+    $("historySummary").textContent = "カテゴリーを選択すると、履歴が表示されます。";
+    $("historyEmpty").hidden = true;
+    $("historyMoreButton").hidden = true;
+    return;
+  }
   const query = $("historySearch").value.trim().toLocaleLowerCase("ja");
   const entries = getHistoryEntries().filter(entry => (type === "all" || entry.status === type)
     && (!query || `${entry.municipality.name} ${entry.municipality.prefecture}`.toLocaleLowerCase("ja").includes(query)));
-  const host = $("historyList");
-  host.replaceChildren();
   for (const entry of entries.slice(0, historyPageSize)) {
     const card = document.createElement("article");
     card.className = "history-card";
@@ -814,6 +823,8 @@ function initializeMap() {
 }
 
 async function initialize() {
+  // ブラウザが前回のプルダウン選択を復元した場合も、起動時は未選択から始める。
+  $("historyStatusFilter").value = "";
   updateRestoreAvailability();
   updateResetRestoreAvailability();
   setImportAvailability(false, "全国の自治体一覧を確認中です。完了するまでバックアップは読み込めません。");

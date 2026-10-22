@@ -325,6 +325,50 @@ test('changing a visited place to unvisited removes its dates but keeps its memo
 });
 
 
+test('history remains empty until a category is chosen, even if a search is typed', async () => {
+  assert.match(html, /<select id="historyStatusFilter">\s*<option value="">カテゴリーを選択<\/option>/);
+  const initial = {
+    '131016': {status:'visited', date:'2026-01-01', memo:'keep'},
+    '131041': {status:'passed', date:'', memo:'keep too'}
+  };
+  const a=start(initial); await wait();
+  const list=a.els.get('historyList');
+  const category=a.els.get('historyStatusFilter');
+  assert.equal(category.value, '');
+  assert.equal(list.children.length, 0);
+  assert.equal(a.els.get('historyBadge').textContent, '—');
+  assert.match(a.els.get('historySummary').textContent,/カテゴリーを選択/);
+  assert.equal(a.els.get('historyEmpty').hidden, true);
+  assert.equal(a.els.get('historyMoreButton').hidden, true);
+
+  a.els.get('historySearch').value='千代田';
+  a.els.get('historySearch').events.input();
+  assert.equal(list.children.length, 0, 'search alone must not open the list');
+  category.value='visited'; category.events.change();
+  assert.equal(list.children.length, 1, 'category selection applies any typed search');
+  category.value=''; category.events.change();
+  assert.equal(list.children.length, 0, 'clearing category hides results again');
+  assert.equal(a.els.get('historyMoreButton').hidden, true);
+  assert.equal(a.els.get('historyEmpty').hidden, true);
+  assert.equal(a.els.get('historyBadge').textContent,'—');
+  assert.equal(a.writes.length, 0);
+  assert.deepEqual(JSON.parse(a.localStore.get('municipality-conquest-records-v1')), initial);
+});
+
+test('history category selection filters visited, passed, all, then hides when cleared', async () => {
+  const initial={
+    '131016':{status:'visited',date:'2026-10-01',memo:''},
+    '131041':{status:'passed',date:'2026-10-02',memo:''}
+  };
+  const a=start(initial); await wait();
+  const category=a.els.get('historyStatusFilter');
+  for (const [choice,expected,label] of [['visited',1,'訪問'],['passed',1,'通過'],['all',2,'両方'],['',0,'未選択']]) {
+    category.value=choice; category.events.change();
+    assert.equal(a.els.get('historyList').children.length,expected,label);
+  }
+  assert.equal(a.writes.length,0);
+});
+
 test('history is sorted by visit date and includes periods, multiple days and undated visits', async () => {
   const originals = {
     '131016': { status:'visited', date:'2026-01-01', memo:'hotel', visitDates:[
@@ -335,6 +379,9 @@ test('history is sorted by visit date and includes periods, multiple days and un
   const a=start(originals);await wait();
   const history = Array.from(vm.runInContext('getHistoryEntries()', a.context));
   assert.deepEqual(history.map(x=>x.start), ['2026-10-01','2026-07-04','2026-01-01','']);
+  assert.equal(a.els.get('historyList').children.length,0, 'no category selected');
+  a.els.get('historyStatusFilter').value='all';
+  a.els.get('historyStatusFilter').events.change();
   assert.equal(a.els.get('historyBadge').textContent, '4 件');
   assert.equal(a.els.get('historyList').children[0].children[0].children[0].textContent, '2026年10月1日 〜 2026年10月6日');
   assert.equal(a.els.get('historyList').children[3].children[0].children[0].textContent, '日付未設定');
@@ -360,6 +407,9 @@ test('history shows first 30 items and loads another page without changing recor
   const initial={};
   for(let i=0;i<40;i++) initial[String(800000+i)]={status:'visited',date:'2026-10-01',memo:''};
   const a=start(initial);await wait();
+  assert.equal(a.els.get('historyList').children.length,0);
+  a.els.get('historyStatusFilter').value='all';
+  a.els.get('historyStatusFilter').events.change();
   assert.equal(a.els.get('historyList').children.length,30);
   assert.equal(a.els.get('historyMoreButton').hidden,false);
   a.els.get('historyMoreButton').events.click();
@@ -371,6 +421,8 @@ test('history shows first 30 items and loads another page without changing recor
 test('reset creates a separate recovery snapshot and restores original dates and memos', async () => {
   const original={'131016':{status:'visited',date:'2026-10-01',visitDates:[{start:'2026-10-01',end:''},{start:'2026-10-10',end:'2026-10-12'}],memo:'stay'}};
   const a=start(original);await wait();
+  a.els.get('historyStatusFilter').value='all';
+  a.els.get('historyStatusFilter').events.change();
   a.els.get('resetButton').events.click();
   assert.deepEqual(JSON.parse(a.localStore.get('municipality-conquest-records-v1')),{});
   const snapshot=JSON.parse(a.localStore.get('municipality-conquest-before-reset-v1'));

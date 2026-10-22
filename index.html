@@ -100,12 +100,13 @@
     <section class="panel history-panel" id="historyPanel">
       <div class="section-heading">
         <div><p class="eyebrow">JOURNEY LOG</p><h2>訪問履歴</h2></div>
-        <span id="historyBadge" class="badge">0 件</span>
+        <span id="historyBadge" class="badge">—</span>
       </div>
-      <p class="muted small history-intro">登録した訪問日・通過日を新しい順に表示します。日付がない記録は最後に表示します。滞在期間は1件として表示します。</p>
+      <p class="muted small history-intro">カテゴリーを選ぶと、該当する訪問・通過の履歴を表示します。日付がない記録は最後に表示し、滞在期間は1件として扱います。</p>
       <div class="history-filters">
-        <label>記録の種類
+        <label>カテゴリー
           <select id="historyStatusFilter">
+            <option value="">カテゴリーを選択</option>
             <option value="all">訪問・通過すべて</option>
             <option value="visited">訪問のみ</option>
             <option value="passed">通過のみ</option>
@@ -115,7 +116,7 @@
           <input id="historySearch" type="search" placeholder="例：茨木市">
         </label>
       </div>
-      <p id="historySummary" class="muted small" role="status"></p>
+      <p id="historySummary" class="muted small" role="status">カテゴリーを選択すると、履歴が表示されます。</p>
       <div id="historyList" class="history-list"></div>
       <p id="historyEmpty" class="empty-state" hidden>条件に合う訪問・通過の記録はまだありません。</p>
       <button type="button" id="historyMoreButton" class="button secondary history-more" hidden>続きを表示</button>
@@ -192,6 +193,6 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="maplibre-map-logic.js?v=prefecture-detail-v2-20261018"></script>
   <script src="maplibre-main.js?v=prefecture-detail-v2-20261018"></script>
-  <script src="app.js?v=history-backup-nav-20261022"></script>
+  <script src="app.js?v=history-category-select-20261022"></script>
 </body>
 </html>
