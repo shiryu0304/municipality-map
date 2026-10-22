@@ -19,6 +19,8 @@ const SAMPLE_MUNICIPALITIES = [
 const STORAGE_KEY = "municipality-conquest-records-v1";
 // 直前のJSONインポート前の記録。通常の訪問記録とは別の保存場所に置く。
 const BEFORE_IMPORT_KEY = "municipality-conquest-before-import-v1";
+const BEFORE_RESET_KEY = "municipality-conquest-before-reset-v1";
+const LAST_EXPORT_KEY = "municipality-conquest-last-export-v1";
 let municipalities = [...SAMPLE_MUNICIPALITIES];
 let municipalitiesReady = false;
 let records = loadRecords();
@@ -107,6 +109,59 @@ function saveBeforeImportBackup() {
     recordsRaw: raw
   }));
   updateRestoreAvailability();
+}
+
+// リセット前のデータを復元するときも、通常の記録とは別の保存場所から読み出す。
+function getBeforeResetBackup() {
+  try {
+    const raw = localStorage.getItem(BEFORE_RESET_KEY);
+    if (!raw) return null;
+    const backup = JSON.parse(raw);
+    if (backup?.version !== 1 || typeof backup.savedAt !== "string" || typeof backup.recordsRaw !== "string") return null;
+    const restored = JSON.parse(backup.recordsRaw);
+    if (!restored || typeof restored !== "object" || Array.isArray(restored)) return null;
+    return { savedAt: backup.savedAt, records: restored };
+  } catch (error) {
+    console.warn("リセット前の記録を確認できませんでした。", error);
+    return null;
+  }
+}
+
+function updateResetRestoreAvailability() {
+  const backup = getBeforeResetBackup();
+  $("restoreBeforeResetButton").disabled = !backup;
+  $("restoreBeforeResetStatus").textContent = backup
+    ? `リセット前の記録を保管中：${new Date(backup.savedAt).toLocaleString("ja-JP")}（${Object.keys(backup.records).length}件）。次のリセットで上書きされます。`
+    : "復元できるリセット前の記録は、まだありません。";
+}
+
+function saveBeforeResetBackup() {
+  const raw = localStorage.getItem(STORAGE_KEY) ?? JSON.stringify(records);
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("現在の記録を確認できませんでした");
+  }
+  localStorage.setItem(BEFORE_RESET_KEY, JSON.stringify({
+    version: 1,
+    savedAt: new Date().toISOString(),
+    recordsRaw: raw
+  }));
+  updateResetRestoreAvailability();
+}
+
+function updateBackupOverview() {
+  $("backupRecordCount").textContent = `この端末の記録：${Object.keys(records).length}件`;
+  let last = null;
+  try {
+    last = JSON.parse(localStorage.getItem(LAST_EXPORT_KEY) || "null");
+  } catch (_) { /* 日時の情報が壊れても、訪問記録は変更しない。 */ }
+  const date = last && typeof last.at === "string" ? new Date(last.at) : null;
+  if (!date || Number.isNaN(date.getTime())) {
+    $("lastExportStatus").textContent = "この端末ではJSON書き出し操作の記録がありません。バックアップを作っておくと安心です。";
+    return;
+  }
+  const days = (Date.now() - date.getTime()) / 86400000;
+  $("lastExportStatus").textContent = `前回のJSON書き出し操作：${date.toLocaleString("ja-JP")}（当時の記録 ${last.count ?? "?"}件）${days > 30 ? "。30日以上経過しています。新しいバックアップをおすすめします。" : ""}`;
 }
 
 function getRecord(code) {
@@ -270,10 +325,84 @@ function renderPrefectureProgress() {
   }
 }
 
+// 訪問日を手入力した履歴。日付未設定の記録も最後に並べ、保存済みの値は書き換えない。
+function getHistoryEntries() {
+  const items = [];
+  for (const municipality of municipalities) {
+    const record = getRecord(municipality.code);
+    if (record.status !== "visited" && record.status !== "passed") continue;
+    const entries = getVisitEntries(record);
+    for (const entry of entries.length ? entries : [{ start: "", end: "" }]) {
+      items.push({ municipality, status: record.status, memo: record.memo || "", start: entry.start, end: entry.end });
+    }
+  }
+  return items.sort((a, b) => b.start.localeCompare(a.start)
+    || b.end.localeCompare(a.end)
+    || a.municipality.name.localeCompare(b.municipality.name, "ja"));
+}
+
+let historyPageSize = 30;
+
+function formatHistoryDate(iso) {
+  if (!iso) return "日付未設定";
+  const [year, month, day] = iso.split("-");
+  return `${year}年${Number(month)}月${Number(day)}日`;
+}
+
+function renderHistory() {
+  const type = $("historyStatusFilter").value || "all";
+  const query = $("historySearch").value.trim().toLocaleLowerCase("ja");
+  const entries = getHistoryEntries().filter(entry => (type === "all" || entry.status === type)
+    && (!query || `${entry.municipality.name} ${entry.municipality.prefecture}`.toLocaleLowerCase("ja").includes(query)));
+  const host = $("historyList");
+  host.replaceChildren();
+  for (const entry of entries.slice(0, historyPageSize)) {
+    const card = document.createElement("article");
+    card.className = "history-card";
+    const body = document.createElement("div");
+    body.className = "history-card-info";
+    const date = document.createElement("p");
+    date.className = `history-card-date${entry.start ? "" : " is-undated"}`;
+    date.textContent = entry.end ? `${formatHistoryDate(entry.start)} 〜 ${formatHistoryDate(entry.end)}` : formatHistoryDate(entry.start);
+    const title = document.createElement("h3");
+    title.textContent = entry.municipality.name;
+    const location = document.createElement("p");
+    location.className = "history-card-location";
+    location.textContent = entry.municipality.prefecture;
+    body.append(date, title, location);
+    if (entry.memo) {
+      const memo = document.createElement("p");
+      memo.className = "history-card-memo";
+      memo.textContent = entry.memo;
+      body.append(memo);
+    }
+    const actions = document.createElement("div");
+    actions.className = "history-card-actions";
+    const pill = document.createElement("span");
+    pill.className = `status-pill status-${entry.status}`;
+    pill.textContent = getStatusLabel(entry.status);
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "button secondary";
+    edit.textContent = "編集";
+    edit.setAttribute("aria-label", `${entry.municipality.name}の記録を編集`);
+    edit.addEventListener("click", () => openRecordDialog(entry.municipality));
+    actions.append(pill, edit);
+    card.append(body, actions);
+    host.append(card);
+  }
+  $("historyBadge").textContent = `${entries.length} 件`;
+  $("historySummary").textContent = `${entries.length} 件中 ${Math.min(entries.length, historyPageSize)} 件を表示`;
+  $("historyEmpty").hidden = entries.length !== 0;
+  $("historyMoreButton").hidden = entries.length <= historyPageSize;
+}
+
 function renderAll() {
   renderStats();
   renderPrefectureProgress();
   renderList();
+  renderHistory();
+  updateBackupOverview();
   refreshMapStyles();
 }
 
@@ -464,6 +593,9 @@ $("cancelDialog").addEventListener("click", closeDialog);
 prefectureFilter.addEventListener("change", renderAll);
 searchInput.addEventListener("input", renderList);
 statusFilter.addEventListener("change", renderList);
+$("historyStatusFilter").addEventListener("change", () => { historyPageSize = 30; renderHistory(); });
+$("historySearch").addEventListener("input", () => { historyPageSize = 30; renderHistory(); });
+$("historyMoreButton").addEventListener("click", () => { historyPageSize += 30; renderHistory(); });
 
 $("exportButton").addEventListener("click", () => {
   const backup = {
@@ -476,12 +608,23 @@ $("exportButton").addEventListener("click", () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `municipality-conquest-backup-${getLocalDateString()}.json`;
+  const exportTime = new Date();
+  const hh = String(exportTime.getHours()).padStart(2, "0");
+  const mm = String(exportTime.getMinutes()).padStart(2, "0");
+  const ss = String(exportTime.getSeconds()).padStart(2, "0");
+  a.download = `municipality-conquest-backup-${getLocalDateString(exportTime)}-${hh}${mm}${ss}.json`;
   document.body.append(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  showToast("バックアップを書き出しました。");
+  // 実ファイルの保存完了は検知できないため、書き出し操作日時としてのみ記録する。
+  try {
+    localStorage.setItem(LAST_EXPORT_KEY, JSON.stringify({ at: exportTime.toISOString(), count: Object.keys(records).length }));
+  } catch (error) {
+    console.warn("書き出し操作日時を保存できませんでした。", error);
+  }
+  updateBackupOverview();
+  showToast("JSONの書き出しを開始しました。保存先のファイルを確認してください。");
 });
 
 $("importInput").addEventListener("change", async (event) => {
@@ -576,7 +719,18 @@ $("restoreBeforeImportButton").addEventListener("click", () => {
 });
 
 $("resetButton").addEventListener("click", () => {
-  if (!confirm("このブラウザに保存されている訪問記録をすべて削除します。事前にバックアップしましたか？")) return;
+  if (Object.keys(records).length === 0) {
+    showToast("リセットする記録はありません。");
+    return;
+  }
+  if (!confirm(`このブラウザの訪問記録 ${Object.keys(records).length} 件をリセットします。リセット前の記録を端末内に自動退避しますが、ブラウザデータを消去すると退避分も消えます。JSONも保存しましたか？`)) return;
+  try {
+    saveBeforeResetBackup();
+  } catch (error) {
+    console.error("リセット前のバックアップ作成に失敗しました。", error);
+    alert("リセット前の記録を保管できないため、リセットを中止しました。現在の記録は変更していません。");
+    return;
+  }
   const previousRecords = records;
   records = {};
   if (!saveRecords()) {
@@ -584,7 +738,26 @@ $("resetButton").addEventListener("click", () => {
     return;
   }
   renderAll();
-  showToast("記録をリセットしました。");
+  showToast("記録をリセットしました。リセット前の記録は復元できます。");
+});
+
+$("restoreBeforeResetButton").addEventListener("click", () => {
+  const backup = getBeforeResetBackup();
+  if (!backup) {
+    updateResetRestoreAvailability();
+    alert("復元できるリセット前の記録がありません。");
+    return;
+  }
+  if (!confirm(`リセット前の記録 ${Object.keys(backup.records).length} 件に戻します。現在の記録 ${Object.keys(records).length} 件は置き換わります。必要な記録をJSONへ書き出しましたか？`)) return;
+  const previousRecords = records;
+  records = backup.records;
+  if (!saveRecords()) {
+    records = previousRecords;
+    alert("記録の復元に失敗しました。現在の記録は変更していません。");
+    return;
+  }
+  renderAll();
+  showToast("リセット前の記録に戻しました。");
 });
 
 function showToast(message) {
@@ -642,6 +815,7 @@ function initializeMap() {
 
 async function initialize() {
   updateRestoreAvailability();
+  updateResetRestoreAvailability();
   setImportAvailability(false, "全国の自治体一覧を確認中です。完了するまでバックアップは読み込めません。");
   try {
     const response = await fetch(DATA_URL, { cache: "no-cache" });

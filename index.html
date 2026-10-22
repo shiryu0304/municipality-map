@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-20261019.png">
   <link rel="icon" type="image/png" sizes="64x64" href="favicon-20261019.png">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="style.css?v=visit-dates-20261022">
+  <link rel="stylesheet" href="style.css?v=history-backup-nav-20261022">
 </head>
 <body>
   <header class="topbar">
@@ -21,7 +21,7 @@
   </header>
 
   <main class="container">
-    <section class="hero panel">
+    <section class="hero panel" id="homePanel">
       <div class="hero-copy">
         <p class="eyebrow">MY JAPAN JOURNEY</p>
         <h2>全国制覇への旅</h2>
@@ -70,7 +70,7 @@
       <p class="muted small map-note">全国表示では都道府県をタップして選択します。県の色は自治体の訪問率を示し、県を開くと市区町村単位の訪問・通過・未踏を表示します。県内で地域をタップすると記録を編集できます。地図の表示には通信が必要です。背景地図は任意でONにできます（Esri、Garmin、GEBCO、NOAA NGDC ほか）。県境データ：スマートニュース メディア研究所（国土数値情報を加工）。</p>
     </section>
 
-    <section class="panel controls">
+    <section class="panel controls" id="searchPanel">
       <div class="section-heading">
         <div><p class="eyebrow">YOUR RECORDS</p><h2>市町村を探す</h2></div>
         <span id="dataBadge" class="badge">データ読み込み中</span>
@@ -97,17 +97,48 @@
       <p id="emptyState" class="empty-state" hidden>該当する市町村がありません。検索条件を変更してください。</p>
     </section>
 
-    <section class="panel tools-panel">
+    <section class="panel history-panel" id="historyPanel">
+      <div class="section-heading">
+        <div><p class="eyebrow">JOURNEY LOG</p><h2>訪問履歴</h2></div>
+        <span id="historyBadge" class="badge">0 件</span>
+      </div>
+      <p class="muted small history-intro">登録した訪問日・通過日を新しい順に表示します。日付がない記録は最後に表示します。滞在期間は1件として表示します。</p>
+      <div class="history-filters">
+        <label>記録の種類
+          <select id="historyStatusFilter">
+            <option value="all">訪問・通過すべて</option>
+            <option value="visited">訪問のみ</option>
+            <option value="passed">通過のみ</option>
+          </select>
+        </label>
+        <label>自治体名で絞り込み
+          <input id="historySearch" type="search" placeholder="例：茨木市">
+        </label>
+      </div>
+      <p id="historySummary" class="muted small" role="status"></p>
+      <div id="historyList" class="history-list"></div>
+      <p id="historyEmpty" class="empty-state" hidden>条件に合う訪問・通過の記録はまだありません。</p>
+      <button type="button" id="historyMoreButton" class="button secondary history-more" hidden>続きを表示</button>
+    </section>
+
+    <section class="panel tools-panel" id="backupPanel">
       <div class="section-heading"><div><p class="eyebrow">DATA & PRIVACY</p><h2>記録のバックアップ</h2></div></div>
-      <p class="muted">記録はこのブラウザ内に保存されます。端末の変更やブラウザデータ消去に備え、定期的にバックアップしてください。</p>
+      <p class="muted">記録はこのブラウザ内に保存されます。端末の変更やブラウザデータ消去に備え、定期的にJSONファイルを別の場所にも保存してください。</p>
+      <div class="backup-overview" aria-label="バックアップの状況">
+        <p id="backupRecordCount" class="backup-record-count">保存中の記録：0件</p>
+        <p id="lastExportStatus" class="small muted" role="status">この端末での書き出し履歴はありません。</p>
+        <p class="small muted">「書き出し操作日時」はダウンロード完了の証明ではありません。iPhoneでは「ファイル」アプリなどにJSONがあることも確認してください。</p>
+      </div>
       <div class="button-row">
         <button id="exportButton" class="button primary">JSONを書き出す</button>
         <label id="importLabel" class="button secondary file-button" aria-disabled="true">バックアップを読み込む<input id="importInput" type="file" accept=".json,application/json" aria-describedby="importStatus" disabled hidden></label>
         <button type="button" id="restoreBeforeImportButton" class="button secondary" disabled>読み込み前の記録に戻す</button>
-        <button id="resetButton" class="button danger-ghost">記録をリセット</button>
+        <button type="button" id="resetButton" class="button danger-ghost">記録をリセット</button>
+        <button type="button" id="restoreBeforeResetButton" class="button secondary" disabled>リセット前の記録に戻す</button>
       </div>
       <p id="importStatus" class="small muted" role="status">全国の自治体一覧を確認中です。完了するまでバックアップは読み込めません。</p>
       <p id="restoreBeforeImportStatus" class="small muted" role="status">復元できる読み込み前の記録は、まだありません。</p>
+      <p id="restoreBeforeResetStatus" class="small muted" role="status">復元できるリセット前の記録は、まだありません。</p>
       <p class="small muted">自動保存はこのブラウザ内だけです。ブラウザのデータ消去に備え、JSONファイルも保管してください。</p>
       <p id="saveStatus" class="small muted" role="status">この端末に保存します。</p>
     </section>
@@ -117,6 +148,14 @@
       <p>GPS機能は次の開発段階で追加します。</p>
     </footer>
   </main>
+
+  <nav class="mobile-bottom-nav" aria-label="画面内の移動">
+    <a href="#homePanel"><span class="mobile-nav-symbol" aria-hidden="true">⌂</span><span>ホーム</span></a>
+    <a href="#mapPanel"><span class="mobile-nav-symbol" aria-hidden="true">▧</span><span>地図</span></a>
+    <a href="#searchPanel"><span class="mobile-nav-symbol" aria-hidden="true">⌕</span><span>検索</span></a>
+    <a href="#historyPanel"><span class="mobile-nav-symbol" aria-hidden="true">▤</span><span>履歴</span></a>
+    <a href="#backupPanel"><span class="mobile-nav-symbol" aria-hidden="true">⇩</span><span>保存</span></a>
+  </nav>
 
   <dialog id="recordDialog">
     <form method="dialog" id="recordForm">
@@ -153,6 +192,6 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="maplibre-map-logic.js?v=prefecture-detail-v2-20261018"></script>
   <script src="maplibre-main.js?v=prefecture-detail-v2-20261018"></script>
-  <script src="app.js?v=visit-dates-20261022"></script>
+  <script src="app.js?v=history-backup-nav-20261022"></script>
 </body>
 </html>
