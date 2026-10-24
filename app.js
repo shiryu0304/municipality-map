@@ -818,7 +818,10 @@ function normalizeMunicipalityData(data) {
     const isTokyoSpecialWard = prefecture === "東京都" && name.endsWith("区");
     if (!isTokyoSpecialWard && !/(市|町|村)$/.test(name)) return null;
     const type = isTokyoSpecialWard ? "特別区" : name.endsWith("市") ? "市" : name.endsWith("町") ? "町" : "村";
-    return { code, prefecture, name, type };
+    // 自治体一覧に元から含まれる citykana を、地図のふりがな表示へ渡す。
+    // 訪問記録の保存形式や自治体コードは変更しない。
+    const kana = String(item.citykana || "").trim();
+    return { code, prefecture, name, type, kana };
   }).filter((m) => {
     if (!m || seen.has(m.code)) return false;
     seen.add(m.code);

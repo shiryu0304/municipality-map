@@ -372,7 +372,10 @@ body.map-fullscreen-active { overflow: hidden; }
 .map-options input[type=checkbox] { width: 16px; height: 16px; accent-color: #176b57; }
 #mapDetailStatus.map-error { color: #ab3434; font-weight: 700; }
 .maplibre-record-popup { display: flex; flex-direction: column; gap: 7px; min-width: 135px; color: #173c30; }
-.maplibre-record-popup strong { font-size: 16px; }
+.maplibre-record-popup strong { font-size: 16px; line-height: 1.55; padding-top: 5px; }
+/* 地図の市区町村名の真上に小さくひらがなを配置する（PC・iPhone共通）。 */
+.maplibre-record-popup ruby { ruby-position: over; ruby-align: center; }
+.maplibre-record-popup rt { color: #41695c; font-size: 10px; font-weight: 500; line-height: 1.1; }
 .maplibre-record-popup p { margin: 0; font-size: 12px; }
 .maplibre-record-popup .button { font-size: 12px; padding: 8px 12px; cursor: pointer; }
 .map-panel.is-map-fullscreen > .map-options { display: none; }

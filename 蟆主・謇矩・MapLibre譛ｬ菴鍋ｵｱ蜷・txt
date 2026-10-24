@@ -1,0 +1,72 @@
+市区町村制覇アプリ：MapLibre v5を本体に統合（2026年10月18日）
+========================================================
+
+【このZIPの目的】
+トップページ（元アプリ）の地図を、操作が滑らかだったMapLibre試作版v5に切り替えます。
+従来の制覇率・検索・訪問記録・JSON保存/復元の仕組みは変えません。
+試作用の maplibre-trial フォルダは削除・変更しません。
+
+【本体側の変更ファイル】
+・index.html          LeafletをMapLibreに変更。背景地図・地名表示のスイッチを追加。
+・style.css           MapLibreと地図内ポップアップ/全画面表示の見た目を追加。
+・app.js              地図部分のみMapLibre呼び出しに変更。記録/一覧/集計処理は維持。
+・maplibre-main.js    【追加】地図表示・スムーズな移動/拡大縮小・地図から編集を開く処理。
+・maplibre-map-logic.js【追加】試作版v5と同じ、地図と自治体のデータ処理。
+・tests フォルダ内     旧Leaflet用の地図テストをMapLibre版に更新。
+
+【大切：先にバックアップ】
+1. PCで元アプリを開き、訪問記録の「JSONを書き出す」を押して保管します。
+2. iPhoneでも別の訪問記録がある場合、iPhone側でもJSONを書き出してください。
+3. GitHub Desktopを開き、municipality-map を選び、作業中の変更をCommitしてください。
+4. 必要な変更をPushし、現在の状態が復元可能なコミットとして残っていることを確認します。
+5. 念のためWindowsのエクスプローラーでmunicipality-mapフォルダを別名でコピーしても安全です。
+
+【導入手順（Windows）】
+1. 本ZIPを右クリック →「すべて展開」。
+2. 展開した「municipality-map」フォルダを開きます。
+3. 中にある次の6個の項目を選んでコピーします。
+   index.html / style.css / app.js / maplibre-main.js /
+   maplibre-map-logic.js / tests（フォルダ）
+4. 現在VS Codeで使用している「municipality-map」フォルダを、Windowsのエクスプローラーで開きます。
+5. そのフォルダの『中』に貼り付けます（さらにmunicipality-mapという入れ子フォルダを作らない）。
+6. 同じファイルを置き換えるか尋ねられたら「ファイルを置き換える」を選択します。
+7. VS Codeで次の構成になったことを確認します。
+   municipality-map/
+      index.html
+      style.css
+      app.js
+      maplibre-main.js           ←新規
+      maplibre-map-logic.js      ←新規
+      maplibre-trial/           ←従来の試作版をそのまま残す
+      tests/
+8. GitHub Desktopの「Changes」で変更内容を確認。maplibre-trialに変更がないことを確認します。
+9. 可能ならLive Serverで index.html を表示し、下の動作チェックを実施します。
+10. 問題がなければGitHub Desktopで「Commit to main」→「Push origin」。
+11. https://shiryu0304.github.io/municipality-map/?maplibre-main=v1 にアクセスします。
+
+【動作確認（必須）】
+PC：全国から県をクリック→市区町村に切替、マウス移動・ホイール拡大縮小、
+    地図をクリック→「記録を編集」→保存、全国制覇率・一覧が連動、
+    JSONを書き出せる、地名や県境が見える、全画面⇔元の画面に戻れる。
+iPhone：県をタップして表示、1本指移動・2本指拡大縮小、
+         自治体タップ→編集→保存、全画面から戻る、
+         Safariで訪問記録が保持されていることを確認。
+背景地図は試作v5と同様に初期OFFです。必要な時にスイッチをONにしてください。
+
+【公開時の注意】
+・コードの変更だけではブラウザの訪問記録は削除されません。ただし端末やブラウザごとに記録は別です。
+・リポジトリ/公開サイトへの自動Pushは行っていません。操作後に公開されます。
+・読み込みに通信が必要で、外部データの取得に失敗した場合は地図の下にエラーが表示されます。
+・旧版のLeafletのコードはGit履歴から復元できます。
+・旧サイトをブラウザがキャッシュしている場合は新しいクエリ付きURLを使ってください。
+
+【元に戻すには】
+GitHub Desktop → History（履歴） → 今回のMapLibre本体統合コミットを右クリック
+→ Revert changes in commit（このコミットを取り消す）→ Push origin。
+※すでに別の変更を加えている場合、取り消し前にGitHub Desktopの状態を確認してください。
+
+【実施した検証】
+node --check: app.js / maplibre-main.js / maplibre-map-logic.js すべて通過。
+node --test tests/*.test.cjs: 31件成功（地図の模擬操作を含む）。
+実際のPC/iPhone上で統合版を開いて確認したわけではありません。
+========================================================

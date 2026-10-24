@@ -4,8 +4,8 @@ const vm = require('node:vm');
 
 const root = path.join(__dirname, '..', '..');
 const logic = require(path.join(root, 'maplibre-map-logic.js'));
-const TOKYO = { code: '131016', prefecture: '東京都', name: '千代田区', type: '特別区' };
-const OSAKA = { code: '272117', prefecture: '大阪府', name: '茨木市', type: '市' };
+const TOKYO = { code: '131016', prefecture: '東京都', name: '千代田区', type: '特別区', kana: 'ちよだく' };
+const OSAKA = { code: '272117', prefecture: '大阪府', name: '茨木市', type: '市', kana: 'いばらきし' };
 const municipalities = [TOKYO, OSAKA];
 const regions = [ { name: '関東', prefectures: ['東京都'] }, { name: '近畿', prefectures: ['大阪府'] } ];
 function shape(pref, name, code, lon, lat) {

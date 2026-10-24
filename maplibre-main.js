@@ -227,7 +227,18 @@
     const content = document.createElement('div');
     content.className = 'maplibre-record-popup';
     const title = document.createElement('strong');
-    title.textContent = municipality.name;
+    if (municipality.kana) {
+      // 漢字名の真上に読みを配置する HTML の ruby を使う（文字列を HTML として解釈しない）。
+      const ruby = document.createElement('ruby');
+      ruby.textContent = municipality.name;
+      const rt = document.createElement('rt');
+      rt.textContent = municipality.kana;
+      ruby.appendChild(rt);
+      title.appendChild(ruby);
+    } else {
+      // 読みデータのない自治体でも、名前が消えないようにする。
+      title.textContent = municipality.name;
+    }
     const description = document.createElement('p');
     const statusLabel = { visited: '訪問', passed: '通過', unvisited: '未踏' }[status];
     description.textContent = `${municipality.prefecture} · ${statusLabel}`;

@@ -30,7 +30,7 @@ function start(initialRecords) {
   const alerts=[];
   const feature=(name,code)=>({type:'Feature',properties:{N03_001:'東京都',N03_004:name,N03_007:code},geometry:{type:'Polygon',coordinates:[[[139,35],[140,35],[140,36],[139,35]]]}});
   const features=[feature('千代田区','13101'),feature('新宿区','13104'),feature('渋谷区','13113')];
-  const catalog=[{lgcode:'131016',pref:'東京都',city:'千代田区'}, {lgcode:'131041',pref:'東京都',city:'新宿区'}, {lgcode:'131130',pref:'東京都',city:'渋谷区'}, ...Array.from({length:999},(_,i)=>({lgcode:String(800000+i),pref:'北海道',city:`テスト${i}市`}))];
+  const catalog=[{lgcode:'131016',pref:'東京都',city:'千代田区',citykana:'ちよだく'}, {lgcode:'131041',pref:'東京都',city:'新宿区',citykana:'しんじゅくく'}, {lgcode:'131130',pref:'東京都',city:'渋谷区',citykana:'しぶやく'}, ...Array.from({length:999},(_,i)=>({lgcode:String(800000+i),pref:'北海道',city:`テスト${i}市`}))];
   const layer={addTo(){return this;},getBounds(){return {isValid(){return true;}};},getLayers(){return features;},setStyle(style){this.style=style;}};
   const bounds={pad(){return this;}};
   const map={setView(){return this;},fitBounds(){return this;},setMaxBounds(){return this;},getBounds(){return bounds;},removeLayer(){},on(){return this;}};
@@ -467,5 +467,15 @@ test('100-percent color setting defaults to ON and persists separately without c
   a.els.get('highlightCompletedToggle').events.change({target:{checked:true}});
   assert.equal(a.localStore.get(key),'on');
   assert.equal(a.els.get('mapPerfectLegendItem').hidden,false);
+  assert.deepEqual(JSON.parse(a.localStore.get('municipality-conquest-records-v1')),initial);
+});
+
+test('既存データの citykana を自治体のふりがなへ渡し、記録の保存内容は変えない',async()=>{
+  const initial={'131016':{status:'visited',date:'2026-02-14',memo:'メモ'}};
+  const a=start(initial);await wait();
+  assert.equal(vm.runInContext('municipalities.find(m=>m.code==="131016").kana',a.context),'ちよだく');
+  assert.equal(vm.runInContext('municipalities.find(m=>m.code==="131041").kana',a.context),'しんじゅくく');
+  assert.equal(vm.runInContext('municipalities.find(m=>m.name==="テスト0市").kana',a.context),'');
+  assert.equal(a.writes.length,0,'ふりがなの取得だけでは訪問記録の保存先を書き換えない');
   assert.deepEqual(JSON.parse(a.localStore.get('municipality-conquest-records-v1')),initial);
 });

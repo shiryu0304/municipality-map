@@ -1,0 +1,59 @@
+市区町村制覇アプリ — 「都道府県を選択」一覧の地域別表示
+作成日：2026年10月18日
+リポジトリ：shiryu0304/municipality-map
+基準：municipality_map_all_labels_smooth_20261017.zip
+
+【今回の変更内容】
+・全国地図の「都道府県を選択」タブを地域別の見出し（optgroup）付きで整理しました。
+・順序は「北海道 → 東北 → 関東 → 中部 → 近畿 → 中国 → 四国 → 九州・沖縄」です。
+・既存の「都道府県別の制覇率」「市町村を探す」と同じ地域定義を使用しています。
+・先頭の「全国」はそのまま残します。
+・地域名は見出しなので選べません。県名はこれまでどおり選択できます。
+・アプリ起動時に一覧にない都道府県名があれば「その他」に表示します。
+・地図描画、全画面表示、地名表示、訪問記録、制覇率の計算、保存形式は変更していません。
+
+【変更したファイル】
+1. app.js（地図の都道府県選択欄を作る処理のみ）
+2. index.html（最新のJavaScriptが読み込まれるように更新識別子のみ変更）
+3. tests/map-prefecture-regions.test.cjs（今回追加した自動テスト）
+※ style.cssをはじめ、その他のファイルは変更不要です。既存ファイルは削除しないでください。
+
+【公開前にバックアップ】
+1. PCで公開アプリの「JSONを書き出す」を押し、訪問記録を保存します。
+2. iPhoneでも必要に応じてJSONを書き出して別途保管します。
+3. GitHub Desktopの左上に municipality-map と表示されていることを確認します。
+4. Changesに未コミットの変更があれば、内容を確認して先にコミットしてください。
+5. 可能ならmunicipality-mapフォルダを別の場所に丸ごとコピーしておきます。
+
+【Windowsでの導入】
+1. このZIPを右クリック→「すべて展開」をクリックします。
+2. GitHub Desktop → Repository → Show in Explorer をクリックします。
+3. 展開した app.js を municipality-map/app.js に上書きします。
+4. 展開した index.html を municipality-map/index.html に上書きします。
+5. 展開した tests/map-prefecture-regions.test.cjs を municipality-map/tests/ にコピーします。
+6. style.css、既存のtests、その他のファイルはそのまま残します。
+
+【PCでの確認】
+1. VS Codeでmunicipality-mapフォルダを開きます。
+2. Live Serverを使用してindex.htmlを表示します（インターネット接続が必要です）。
+3. 「全国から都道府県を選択」→「都道府県を選択」を開きます。
+4. 「全国」の下に北海道・東北・関東・中部・近畿・中国・四国・九州・沖縄の順に地域見出しがあるか確認します。
+5. 地域名ではなく「東京都」「大阪府」などを選ぶと、その県の地図が開くか確認します。
+6. 「全国表示に戻す」、地図上で県を押す、全画面表示、地名表示、記録編集も確認してください。
+7. Node.jsが入っていればVS Codeのターミナルで node --test tests/*.test.cjs を実行できます。
+
+【GitHub Pagesへの公開】
+1. PCで問題がなければ、GitHub Desktopに戻ってChangesを確認します。
+2. Summaryに Group map prefecture selector by region と入力します。
+3. Commit to main → Push origin の順にクリックします。
+4. https://shiryu0304.github.io/municipality-map/ の公開画面を確認します。
+
+【iPhoneでの確認】
+・Safariとホーム画面版の両方で都道府県の一覧順を確認します。
+・地域見出しと県名の表示方法は、iOSの選択画面によって見た目が異なる場合があります。
+・県の選択、全画面表示、ピンチ操作、地名表示、記録編集が以前と同じように利用できるか確認します。
+・古い画面のままでも、記録を消さないためブラウザのサイトデータは削除しないでください。
+
+【テスト】
+このZIPと同じソースコード上で、自動テスト36項目に合格（前回ZIPに同梱された33項目＋今回の3項目）、JavaScript構文チェック合格。
+PC・iPhoneの実機表示、外部地図データの配信状況、公開サイトへの反映は未検証です。
